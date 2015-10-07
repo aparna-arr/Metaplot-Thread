@@ -27,17 +27,50 @@ class RunningAvg
 	RunningAvg();
 	RunningAvg(int window, int shift);
 	void populate(double value);
-	void queue(double val);
-	void dequeue(void);
+	void queue(int numQueues, double val);
+	void next(int num);
 	double getAvg(void);	
 
 	private:
-	double * queue; // this should be circular
-	int first; // thing to dequeue next
+	double * queueAr; // this should be circular
 	int nextEmpty; // next empty block to use -- same as first???
 	int numShifts;	
 
 	double currentAvg; 		
+};
+
+class Process
+{
+	public:
+	Process() { } ;
+	Process(int bedNum, int maxWindow, int shift, int window, std::vector<Bed *> * &bedsByChr, std::vector<Wig *> &wigsByChr, ThreadInfo * threads, std::map< std::string, std::vector<int> * > * &chrs);
+
+	void calculate(void);
+	std::string printResults(void);
+
+	private:
+	void chromThread(std::vector<std::string>::iterator chromStart, std::vector<std::string>::iterator chromEnd, MetaplotRegion * &regionMerge);
+	void bedThread(Bed ** bedAr, std::vector<Wig *>::iterator wigIter, MetaplotRegion * &regionMerge);
+	void divThread(std::vector<Peak>::iterator bedPeakStart, std::vector<Peak>::iterator bedPeakEnd, std::vector<Peak>::iterator wigPeakStart, std::vector<Peak>::iterator wigPeakEnd, MetaplotRegion * &regionMerge);
+	void map(std::vector<Peak>::iterator wigPeakStart, std::vector<Peak>::iterator wigPeakEnd, int bedStart, char bedStrand, MetaplotRegion * &regionMerge);
+	
+	void makeChromVec(void);
+
+	MetaplotRegion * mergeMetaplotRegions(MetaplotRegion ** array, int numRegions);
+
+	int bedNum;	
+	int maxWindow;
+	int shift;
+	int window;
+	int chromsPerThread;
+	int bedsPerThread;
+	int divsPerThread;
+	ThreadInfo * threads;
+	std::vector<Bed *> * bedsByChr;
+	std::vector<Wig *> wigsByChr; 
+	std::map< std::string, std::vector<int> * > * chrs;
+	std::vector<std::string> chromVec;
+	MetaplotRegion * region;
 };
 
 void print(std::string msg);
