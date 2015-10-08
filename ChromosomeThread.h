@@ -35,7 +35,8 @@ class Chromosome
 	
 	std::string getChr(void);
 	void nextPeak(void);
-	std::vector<Peak>::iterator getCurrPeak(void);	
+	std::vector<Peak>::iterator getCurrPeak(void);
+	std::vector<Peak>::iterator firstPeak(void);	
 	int getPeakStart(void);
 	int getPeakEnd(void);
 	void setFilename(std::string filename);
@@ -65,7 +66,11 @@ class Wig: public Chromosome
 	virtual void readPeaks(void);
 	virtual void addPeak(int start, int end, double value);
 	virtual void generateFilename(void);
-	virtual void getPeakDiv(int startPos, int endPos, std::vector<Peak>::iterator &startIter, std::vector<Peak>::iterator &endIter); // to do bsearch on
+	virtual void getPeakDiv(int startPos, int endPos, Wig * &div); // to do bsearch on
+	std::vector<Peak>::iterator firstPeak(void);
+	std::vector<Peak>::iterator endPeak(void);
+
+
 //	void unstack(void);
 //	void restack(void);
 
@@ -87,7 +92,7 @@ class Bed : public Chromosome
 	virtual void readPeaks(void);
 	virtual void addPeak(int start, int end, char strand);
 	virtual void generateFilename(int filenum);
-	virtual void getPeakDiv(int numDivs, int iteration, std::vector<Peak>::iterator &startIter, std::vector<Peak>::iterator &endIter);	
+	virtual void getPeakDiv(int numDivs, int iteration, std::vector<Peak>::iterator &startIter, std::vector<Peak>::iterator &endIter, Bed * &div);	
 
 	private: 
 	int peakLen;

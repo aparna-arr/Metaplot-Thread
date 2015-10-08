@@ -92,6 +92,29 @@ void Wig::restack(void)
 	}
 }
 */
+
+vector<Peak>::iterator Wig::firstPeak(void)
+{
+	if (!peaks.empty())
+		return peaks.end() - 1;
+	else
+	{
+		currPeakValid = false;
+		return peaks.end();
+	}
+}
+
+vector<Peak>::iterator Wig::endPeak(void)
+{
+	if (!peaks.empty())
+		return peaks.begin() - 1;
+	else
+	{
+		currPeakValid = false;
+		return peaks.end();
+	}
+}
+
 void Wig::printPeaks(void)
 {
 	ofstream fstream(fileName.c_str());
@@ -147,10 +170,72 @@ void Wig::generateFilename(void)
 	fileName = chrName + "_wig" + ".bed";
 }
 
-void Wig::getPeakDiv(int startPos, int endPos, vector<Peak>::iterator &startIter, vector<Peak>::iterator &endIter)
+void Wig::getPeakDiv(int startPos, int endPos, Wig * &div)
 {
+//	cerr << "in wig Get Peak Div" << endl;
 	// do bsearch on start and end
 	// return segment of wigpeaks between [ ) start and end
+
+	cerr << "in wig get peak div" << endl;
+	div = new Wig(chrName);
+
+	vector<Peak>::iterator min = peaks.begin();
+	vector<Peak>::iterator max = peaks.end();
+	vector<Peak>::iterator mid = (max - min) / 2 + min;
+
+	vector<Peak>::iterator startIter, endIter;
+
+	cerr << "after init" << endl;
+	
+	while (min < max)
+	{
+		mid = (max - min) / 2 + min;
+		
+		if (mid->start == startPos)
+			break;
+		else if (mid->start < startPos)
+			max = mid - 1;
+		else if (mid->start > startPos)
+			min = mid + 1;
+	}
+
+	if (mid->end < startPos)
+		mid++;
+	
+	if (mid != peaks.begin() && (mid - 1)->end > startPos)
+		mid--;
+
+	startIter = mid;
+
+	cerr << "after 1st bsearch" << endl;
+
+	min = mid;
+	max = peaks.end();
+	
+	while(min < max)
+	{
+		mid = (max - min) / 2 + min;
+
+		if(mid->end == endPos)
+			break;
+		else if (mid->end < endPos)
+			max = mid - 1;
+		else if (mid->end > endPos)
+			min = mid + 1;
+	}	
+
+	if (mid != startIter && (mid-1)->start > endPos)
+		mid--;
+	if (mid != peaks.end() && mid->end < endPos)
+		mid++;
+
+	endIter = mid;
+
+	cerr << "after 2nd bsearch" << endl;
+
+	// FIXME should this be iter <= endIter??? for the case where start and end are the same? Which should never happen unless NO wig peaks over bed ...
+	for (vector<Peak>::iterator iter = startIter; iter != endIter; iter++)
+		div->addPeak(iter->start, iter->end, iter->value);
 }
 
 /* End Wig functions */
@@ -212,9 +297,24 @@ void Bed::generateFilename(int filenum)
 	fileName = chrName + "_" + intToString.str() + ".bed";
 }
 
-void Bed::getPeakDiv (int numDivs, int iteration, vector<Peak>::iterator &startIter, vector<Peak>::iterator &endIter)
+void Bed::getPeakDiv (int numDivs, int iteration, vector<Peak>::iterator &startIter, vector<Peak>::iterator &endIter, Bed * &div)
 {
 	// divide size() by numDivs, return [ iteration * numDivs, iteration * numDivs + (iteration+1) * numDivs OR peaks.end() )
+
+	div = new Bed(chrName, peakLen);
+
+	int sizeOfDiv = (peaks.size() + 1) / (numDivs + 1);
+
+	startIter = peaks.begin() + sizeOfDiv * iteration;
+
+	if (startIter + sizeOfDiv > peaks.end())
+		endIter = peaks.end();
+	else
+		endIter = peaks.begin() + sizeOfDiv * (iteration + 1);
+
+	// FIXME same question as Wig::getPeakDiv
+	for (vector<Peak>::iterator iter = startIter; iter != endIter; iter++)
+		div->addPeak(iter->start, iter->end, iter->strand);
 }
 	
 /* End Bed functions */

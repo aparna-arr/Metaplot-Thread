@@ -43,7 +43,7 @@ class Process
 {
 	public:
 	Process() { } ;
-	Process(int bedNum, int maxWindow, int shift, int window, std::vector<Bed *> * &bedsByChr, std::vector<Wig *> &wigsByChr, ThreadInfo * threads, std::map< std::string, std::vector<int> * > * &chrs);
+	Process(int bedNumArg, int maxWindowArg, int shiftArg, int windowArg, std::vector<Bed *> * &bedsByChrArg, std::vector<Wig *> &wigsByChrArg, ThreadInfo * threadsArg, std::map< std::string, std::vector<int> * > * &commonChrs);
 
 	void calculate(void);
 	std::string printResults(std::string nameStr, std::string nameStrR);
@@ -51,10 +51,10 @@ class Process
 	private:
 	void chromThread(std::vector<std::string>::iterator chromStart, std::vector<std::string>::iterator chromEnd, MetaplotRegion ** &regionMerge);
 	void bedThread(Bed ** bedAr, std::vector<Wig *>::iterator wigIter, MetaplotRegion ** &regionMerge, int whichSlice);
-	void divThread(std::vector<Peak>::iterator bedPeakStart, std::vector<Peak>::iterator bedPeakEnd, std::vector<Peak>::iterator wigPeakStart, std::vector<Peak>::iterator wigPeakEnd, MetaplotRegion * &regionMerge);
-	void mapWig(std::vector<Peak>::iterator wigPeakStart, std::vector<Peak>::iterator wigPeakEnd, int bedStart, char bedStrand, MetaplotRegion * &regionMerge);
+	void divThread(Bed * bed, Wig * wig, MetaplotRegion * &regionMerge);
+	void mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &regionMerge);
 	
-	void makeChromVec(void);
+	void makeChromVec(std::map< std::string, std::vector<int> * > * commonChrs);
 
 	MetaplotRegion * mergeMetaplotRegions(MetaplotRegion ** array, int numRegions);
 	void mergeMetaplotRegionsByBed(MetaplotRegion ** &oldArray, MetaplotRegion ** newArray);

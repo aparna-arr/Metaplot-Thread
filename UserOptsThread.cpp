@@ -223,11 +223,20 @@ void UserOpts::preprocess(void)
 
 void UserOpts::split(vector<Bed *> * &bedSplit, vector<Wig *> &wigSplit)
 {
-	print("In split function");
+
+	stringstream id;
+	id << this_thread::get_id();
+
+	string debug = " My id: " + id.str() + " " ;
+
+
+	print("In split function" + debug);
 	if (threads.bedThreads == 0) // do not thread bed and wig
 	{
+		print("Not threading" + debug);
 		if (bedSplitDir != "")
 		{
+			print ("Beds already split" + debug);
 			// bedfiles are already split
 			// read bed files
 			readBedSplit(bedSplit); // FIXME copy over this function -> done
@@ -235,11 +244,15 @@ void UserOpts::split(vector<Bed *> * &bedSplit, vector<Wig *> &wigSplit)
 		else 	
 			splitBeds(bedSplit, 0, bedNum);
 
+		print("done splitting beds" + debug);
+
 		splitWig(wigSplit);
+
+		print("done splitting wigs" + debug);
 	}
 	else
 	{
-		print("split: going to thread beds");
+		print("split: going to thread beds" + debug);
 		thread threadAr[threads.bedThreads+1];
 		
 		// thread Wig
@@ -559,6 +572,8 @@ void UserOpts::calcSlidingWindow(std::vector<Peak> * wigBlocks)
 
 void UserOpts::splitBeds(vector<Bed *> * &arOfBedfiles, int startBed, int bedsPerThread)
 {
+
+
 	stringstream id;
 	id << this_thread::get_id();
 
@@ -568,9 +583,9 @@ void UserOpts::splitBeds(vector<Bed *> * &arOfBedfiles, int startBed, int bedsPe
 
 	for (vector<string>::iterator iter = bedFiles.begin() + startBed; iter != bedFiles.begin() + startBed + bedsPerThread; iter++)
 	{
-		print("\tIn for loop" + debug);
+//		print("\tIn for loop" + debug);
 		ifstream file((*iter).c_str());
-		print("\tAfter iter call" + debug);
+//		print("\tAfter iter call" + debug);
 
 		string line;
 		string prevChr = "INIT";
@@ -579,53 +594,53 @@ void UserOpts::splitBeds(vector<Bed *> * &arOfBedfiles, int startBed, int bedsPe
 		
 		stringstream iToS;
 		iToS << startBed;
-		
+/*		
 		string start = "startBed is " + iToS.str();
 		//string debug = "File is " + (*iter);
 		print(start + debug);
 		print("\tbefore while loop" + debug);
-
+*/
 		while (getline(file, line))
 		{
-			print("\tin while loop"+ debug);
+//			print("\tin while loop"+ debug);
 			stringstream linestream(line);	
 			string chr; 
 			int start, end;
 			char strand;
 			linestream >> chr >> start >> end >> strand;
 				
-			print("\tafter get line and split line" + debug);
+//			print("\tafter get line and split line" + debug);
 
-			// FIXME NEED A MUTEX ON THIS
 			if (commonChrs.find(chr) == commonChrs.end())
 				continue;
 
 			if (chr != prevChr)
 			{
-				print("\t\tin first if" + debug);
+//				print("\t\tin first if" + debug);
 				if (prevChr != "INIT")
 				{
-					print("\t\t\tin if" + debug);
+//					print("\t\t\tin if" + debug);
 					currBed->printPeaks();
 					Bed *  tmp = new Bed();
 					*tmp = *currBed;
 		
-					print("\t\t\tafter assigning tmp" + debug);
+//					print("\t\t\tafter assigning tmp" + debug);
 
 					arOfBedfiles[iter - bedFiles.begin()].push_back(tmp);
 //					*(commonChrs[prevChr]->begin() + (iter - bedFiles.begin() + 1)) = arOfBedfiles[iter - bedFiles.begin()].size() - 1;
-					print("\t\t\tafter arOfBedfiles push" + debug);
-
+//					print("\t\t\tafter arOfBedfiles push" + debug);
+/*
 
 					// FIXME NEED A MUTEX ON THIS, OR COPY OVER!	
 					// well each should be modifying--inserting--a unique place ...
 					stringstream iToS;
 					iToS << iter - bedFiles.begin();
 					print("\t\t\tcurrBed is " + iToS.str() + debug);					
-						
+*/						
 
-					commonChrs[prevChr]->insert(commonChrs[prevChr]->begin() + (iter - bedFiles.begin() + 1), arOfBedfiles[iter-bedFiles.begin()].size() - 1);
-					print("\t\t\tend of if" + debug);
+					*(commonChrs[prevChr]->begin() + (iter - bedFiles.begin() + 1)) = arOfBedfiles[iter - bedFiles.begin()].size() - 1;
+//					commonChrs[prevChr]->insert(commonChrs[prevChr]->begin() + (iter - bedFiles.begin() + 1), arOfBedfiles[iter-bedFiles.begin()].size() - 1);
+//					print("\t\t\tend of if" + debug);
 				}
 			
 				*currBed = Bed(chr, maxWindow);
@@ -634,15 +649,16 @@ void UserOpts::splitBeds(vector<Bed *> * &arOfBedfiles, int startBed, int bedsPe
 			}
 			
 			currBed->addPeak(start, end, strand);
-			print("\t\tend of first if" + debug);
+//			print("\t\tend of first if" + debug);
 		}
-		print("After while");
+//		print("After while");
 		currBed->printPeaks();
 		Bed * tmp = new Bed();
 		*tmp = *currBed;
 		arOfBedfiles[iter - bedFiles.begin()].push_back(tmp);
 //		*(commonChrs[prevChr]->begin()+ (iter - bedFiles.begin() + 1)) = arOfBedfiles[iter - bedFiles.begin()].size() - 1;
-		commonChrs[prevChr]->insert(commonChrs[prevChr]->begin() + (iter - bedFiles.begin() + 1), arOfBedfiles[iter-bedFiles.begin()].size() - 1);
+		*(commonChrs[prevChr]->begin() + (iter - bedFiles.begin() + 1)) = arOfBedfiles[iter - bedFiles.begin()].size() - 1;
+//		commonChrs[prevChr]->insert(commonChrs[prevChr]->begin() + (iter - bedFiles.begin() + 1), arOfBedfiles[iter-bedFiles.begin()].size() - 1);
 
 		file.close();
 	}
@@ -657,6 +673,14 @@ void UserOpts::splitWig(vector<Wig *> &wigSplit)
 
 	// can't split this function to thread it
 	// FIXME copy over rest of this function -> done
+
+	stringstream id;
+	id << this_thread::get_id();
+
+	string debug = " My id: " + id.str() + " " ;
+
+	print("splitWig(): start" + debug);
+
 	ifstream fstream(wigFile.c_str());
 	string line;
 
@@ -666,6 +690,9 @@ void UserOpts::splitWig(vector<Wig *> &wigSplit)
 
 	while(getline(fstream, line))
 	{
+
+//		print("splitWig(): in while" + debug);
+
 		stringstream linestream(line);
 		stringstream test(line);
 		int pos;
@@ -680,21 +707,29 @@ void UserOpts::splitWig(vector<Wig *> &wigSplit)
 	
 			string chr = substring.substr(substring.find("=") + 1, substring.length());
 			
+			if (commonChrs.find(chr) == commonChrs.end())
+
 			linestream >> substring; // span=
 
 			string span = substring.substr(substring.find("=") + 1, substring.length());
 
 			if (chr != currChr)
 			{
-				if (currChr != "INIT")
+				if (currChr != "INIT" && commonChrs.find(currChr) != commonChrs.end())
 				{
 					// print prev Chr peaks
 					currWig->printPeaks();
 					Wig * tmp = new Wig();
 					*tmp = *currWig;
 					wigSplit.push_back(tmp);	
-//					*(commonChrs[currChr]->begin())= wigSplit.size() - 1;
-					commonChrs[currChr]->insert(commonChrs[currChr]->begin(), wigSplit.size() - 1);
+
+					*(commonChrs[currChr]->begin()) = wigSplit.size() - 1;
+					
+//					commonChrs[currChr]->insert(commonChrs[currChr]->begin(), wigSplit.size() - 1);
+				}
+				else if (currChr != "INIT" && commonChrs.find(currChr) == commonChrs.end())
+				{
+					currWig->clearPeaks();
 				}
 				
 				currChr = chr;
@@ -710,16 +745,37 @@ void UserOpts::splitWig(vector<Wig *> &wigSplit)
 			linestream >> pos >> val;
 			currWig->addPeak(pos, pos+currSpan, val);
 		}
+
+//		print("splitWig(): end of while" + debug);
 	}
 
-	currWig->printPeaks();
-	Wig * tmp = new Wig();
-	*tmp = *currWig;
-	wigSplit.push_back(tmp);	
-//	*(commonChrs[currChr]->begin()) = wigSplit.size() - 1;
-	commonChrs[currChr]->insert(commonChrs[currChr]->begin(), wigSplit.size() - 1);
 
+	print("splitWig(): after while" + debug);
+	if (commonChrs.find(currChr) != commonChrs.end())
+	{
+
+		currWig->printPeaks();
+
+		print("splitWig(): After print peaks" + debug);
+	
+		Wig * tmp = new Wig();
+
+		print("splitWig(): after new" + debug);
+
+		*tmp = *currWig;
+		wigSplit.push_back(tmp);	
+
+		print ("splitWig(): after handle tmp" + debug);
+
+		print("splitWig(): currChr is " + currChr + debug);
+
+		*(commonChrs[currChr]->begin()) = wigSplit.size() - 1;
+//		commonChrs[currChr]->insert(commonChrs[currChr]->begin(), wigSplit.size() - 1);
+
+		print("splitWig(): after assign commmonChr" + debug);
+	}
 	fstream.close();
+	print("splitWig(): Done" + debug);
 }
 
 void UserOpts::readBedSplit(std::vector<Bed *> * &arOfBedfiles)
