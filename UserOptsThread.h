@@ -30,6 +30,9 @@ class UserOpts
 	
 	int getBedNum(void);
 	int getMaxWindow(void);
+	int getShift(void);
+	int getWindow(void);
+
 	std::string getNameStr(void);
 	std::string getNameStrR(void);
 	bool isMonteCarlo(void);

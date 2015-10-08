@@ -18,7 +18,7 @@ RunningAvg::RunningAvg(int window, int shift)
 {
 	// FIXME expect window % shift == 0
 	numShifts = window / shift;
-	queue = new double[numShifts];
+	queueAr = new double[numShifts];
 
 	for (int i = 0; i < numShifts; i++)
 		queueAr[i] = 0;
@@ -67,81 +67,113 @@ Process::Process(int bedNum, int maxWindow, int shift, int window, vector<Bed *>
 	maxWindow = maxWindow;
 	shift = shift;
 	window = window;
-	chromsPerThread = chrs->size() / threads.chromThreads;
-	bedsPerThread = bedNum / threads.bedThreads;
-	divsPerThread = threads.divThreads;
+	chromsPerThread = chrs->size() / threads->chromThreads;
+	bedsPerThread = bedNum / threads->bedThreads;
+	divsPerThread = threads->divThreads;
 	bedsByChr = bedsByChr;
 	threads = threads;
 	wigsByChr = wigsByChr;
 	chrs = chrs;
-	region = new MetaplotRegion(maxWindow);
+	region = new MetaplotRegion*[bedNum];
+
+	for (int i = 0; i < bedNum; i++)
+		region[i] = new MetaplotRegion(maxWindow);
 
 	makeChromVec();
 }
 
 void Process::makeChromVec(void)
 {
-	for (map<string, vector<int> *>::iterator iter = chrs->begin(); iter != chrs->end(); iter++)
+	for (map<string, vector<int> * >::iterator iter = chrs->begin(); iter != chrs->end(); iter++)
 		chromVec.push_back(iter->first);
 }
 
 MetaplotRegion * Process::mergeMetaplotRegions(MetaplotRegion ** array, int numRegions)
 {
-	MetaplotRegion * merge;	
+	MetaplotRegion * merge = new MetaplotRegion(maxWindow);	
 
 	for (int i = 0; i < numRegions; i++)
 	{
 		for (int j = 0; j < maxWindow; j++)
 		{
-			merge.basePairs[j][0] += array[i].basePairs[j][0];
-			merge.basePairs[j][1] += array[i].basePairs[j][1];
+			merge->basePairs[j][0] += array[i]->basePairs[j][0];
+			merge->basePairs[j][1] += array[i]->basePairs[j][1];
 		}
 	}
 	
 	return merge;
 }
 
+void Process::mergeMetaplotRegionsByBed(MetaplotRegion ** &oldArray, MetaplotRegion ** newArray)
+{
+	for (int i = 0; i < bedNum; i++)
+	{
+		for (int j = 0; j < maxWindow; j++)
+		{
+			oldArray[i]->basePairs[j][0] += newArray[i]->basePairs[j][0];
+			oldArray[i]->basePairs[j][1] += newArray[i]->basePairs[j][1];
+		}
+	}
+}
+
 void Process::calculate(void)
 {
 
+//	if (threads->bedThreads == 0)
 	if (threads->chromThreads == 0)
 	{
-		MetaplotRegion * calcRegion = new MetaplotRegion(maxWindow);
-		chromThread(chromVec.begin(), chromVec.end(), calcRegion); 
-		region = calcRegion;
+		chromThread(chromVec.begin(), chromVec.end(), region); 
 	}
 	else
 	{
 		thread threadAr[threads->chromThreads];
-		MetaplotRegion ** regionAr = new MetaplotRegion*[threads->chromThreads];		
+//		MetaplotRegion ** regionAr = new MetaplotRegion*[threads->chromThreads];		
+
+//		thread threadAr[threads->bedThreads];
+//		MetaplotRegion ** regionAr = new MetaplotRegion*[bedNum];
+
+//		for (int k = 0; k < bedNum; k++)
+//			regionAr[k] = new MetaplotRegion(maxWindow);
+
+		MetaplotRegion *** chromRegion = new MetaplotRegion**[threads->chromThreads];
 
 		for (int i = 0; i < threads->chromThreads; i++)
 		{
-			regionAr[i] = new MetaplotRegion();
-			threadAr[i] = thread(&Process::chromThread, this, chromVec.begin() + chromsPerThread * i, chromVec.begin() + chromsPerThread * (i + 1), regionAr[i]);
+//			regionAr[i] = new MetaplotRegion();
+			chromRegion[i] = new MetaplotRegion*[bedNum];
+		
+			for (int k = 0; k < bedNum; k++) // VERY EXPENSIVE init for Monte Carlo! Horrible! O(numChrom * numBed) so basically n^2!
+				chromRegion[i][k] = new MetaplotRegion(maxWindow);
+
+
+			threadAr[i] = thread(&Process::chromThread, this, chromVec.begin() + chromsPerThread * i, chromVec.begin() + chromsPerThread * (i + 1), ref(chromRegion[i]));
 		}
 
 		for (int j = 0; j < threads->chromThreads; j++)
 			threadAr[j].join();
 
-		region = mergeMetaplotRegions(regionAr);
+//		region = mergeMetaplotRegions(regionAr, threads->chromThreads);
+		for (int m = 0; m < threads->chromThreads; m++)
+			mergeMetaplotRegionsByBed(region, chromRegion[m]);				
+
 	}
 }
 
-void Process::chromThread(vector<string>::iterator chromStart, vector<string>::iterator chromEnd, MetaplotRegion * &regionMerge)
+void Process::chromThread(vector<string>::iterator chromStart, vector<string>::iterator chromEnd, MetaplotRegion ** &regionMerge)
 {
-	MetaplotRegion ** chromRegionMerge = new MetaplotRegion*[chromsPerThread];
+//	MetaplotRegion ** chromRegionMerge = new MetaplotRegion*[chromsPerThread];
 	if (threads->bedThreads == 0)
 	{
-		MetaplotRegion * calcRegion = new MetaplotRegion(maxWindow);
-
 		for (vector<string>::iterator iter = chromStart; iter != chromEnd; iter++)
 		{
-			chromRegionMerge[iter - chromStart] = new MetaplotRegion(maxWindow);
+//			chromRegionMerge[iter - chromStart] = new MetaplotRegion(maxWindow);
+
+			MetaplotRegion ** bedRegion = new MetaplotRegion*[bedNum]; // for threadsafe
+
 			int wigChrPos = *(chrs->find(*iter)->second->begin());
 			wigsByChr[wigChrPos]->readPeaks();
 
-			Bed ** bedAr = new Bed*[numBeds];
+			Bed ** bedAr = new Bed*[bedNum];
 
 			for (vector<int>::iterator it = chrs->find(*iter)->second->begin() + 1; it != chrs->find(*iter)->second->end(); it++)
 			{
@@ -149,25 +181,32 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 				bedAr[index] = *(bedsByChr[index].begin() + *it);
 			}
 
-			bedThread(bedAr, wigsByChr.begin() + wigChrPos, chromRegionMerge[iter-chromStart]);
+			bedThread(bedAr, wigsByChr.begin() + wigChrPos, bedRegion, 0);
+			mergeMetaplotRegionsByBed(regionMerge, bedRegion);
 		}
 
 	}
 	else
 	{
-		
+//		for (int i = 0; i < bedNum; i++)
+//			bedRegion[i] = new MetaplotRegion(maxWindow);
+
+
 		for (vector<string>::iterator iter = chromStart; iter != chromEnd; iter++)
 		{
-			chromRegionMerge[iter - chromStart] = new MetaplotRegion(maxWindow);
+//			chromRegionMerge[iter - chromStart] = new MetaplotRegion(maxWindow);
+			
+
+			MetaplotRegion ** bedRegion = new MetaplotRegion*[bedNum];
 			int wigChrPos = *(chrs->find(*iter)->second->begin());
 			wigsByChr[wigChrPos]->readPeaks();
 			
-			Bed *** bedAr = newBed**[threads->bedThreads];
-			
+			Bed *** bedAr = new Bed**[threads->bedThreads];
+			 
 			for (int i = 0; i < threads->bedThreads; i++)
 			{
-				bedAr[i] = new Bed*[bedsPerThreads];
-				for (vector<int>::iterator it = chrs->find(*iter)->second->begin() + (i + 1) * bedsPerThreads; it != chrs->find(*iter)->second->begin() + (i + 1 + 1) * bedsPerThreads; it++)
+				bedAr[i] = new Bed*[bedsPerThread];
+				for (vector<int>::iterator it = chrs->find(*iter)->second->begin() + (i + 1) * bedsPerThread; it != chrs->find(*iter)->second->begin() + (i + 1 + 1) * bedsPerThread; it++)
 				{
 					int index = it - chrs->find(*iter)->second->begin()-1;
 					bedAr[i][index] = *(bedsByChr[index].begin() + *it);		
@@ -176,49 +215,70 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 			
 
 			thread threadAr[threads->bedThreads];
-			MetaplotRegion ** regionAr = new MetaplotRegion[threads->bedThreads];
+//			MetaplotRegion ** regionAr = new MetaplotRegion*[threads->bedThreads];
 			for (int i = 0; i < threads->bedThreads; i++)
 			{
-				regionAr[i] = new MetaplotRegion(maxWindow);
-				threadAr[i] = thread(&Process::bedThread, this, bedAr[i], wigsByChr.begin() + wigChrPos, regionAr[i]);	
+//				regionAr[i] = new MetaplotRegion(maxWindow);
+//				threadAr[i] = thread(&Process::bedThread, this, bedAr[i], wigsByChr.begin() + wigChrPos, ref(regionAr[i]));	
+				threadAr[i] = thread(&Process::bedThread, this, bedAr[i], wigsByChr.begin() + wigChrPos, ref(bedRegion), i);	
 			}
 
 			for (int i = 0; i < threads->bedThreads; i++)
 				threadAr[i].join();
 
-			chromRegionMerge[iter - chromStart] = mergeMetaplotRegions(regionAr); 
+//			chromRegionMerge[iter - chromStart] = mergeMetaplotRegions(regionAr, threads->bedThreads); 
+/*
+			if (iter != chromStart)
+			{
+				// merge this and the previous chr
+				for (int i = 0; i < bedNum; i++)
+				{
+					mergeMetaplotRegionsByBed(bedRegion[0], bedRegion[1]);
+				}
+
+				delete bedRegion[1];
+			}
+*/
+			mergeMetaplotRegionsByBed(regionMerge, bedRegion);
 		}
+
+		
 	}
 
-	regionMerge = mergeMetaplotRegions(chromRegionMerge);
+//	regionMerge = mergeMetaplotRegions(chromRegionMerge, chromsPerThread);
 }
 
-void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotRegion * &regionMerge)
+void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotRegion ** &regionMerge, int whichSlice)
 {
 	if (threads->divThreads == 0)
 	{
-		MetaplotRegion ** bedRegionMerge = new MetaplotRegion*[bedsPerThread];
+//		MetaplotRegion ** bedRegionMerge = new MetaplotRegion*[bedsPerThread];
 
 		for (int i = 0; i < bedsPerThread; i++)
 		{
-			bedRegionMerge[i] = new MetaplotRegion(maxWindow);
+//			bedRegionMerge[i] = new MetaplotRegion(maxWindow);
+			regionMerge[i + whichSlice] = new MetaplotRegion(maxWindow);
 
 			bedAr[i]->readPeaks();
 			
 			vector<Peak>::iterator startBed, endBed, startWig, endWig;
 			bedAr[i]->getPeakDiv(0, 0, startBed, endBed);
-			wigIter->getPeakDiv(startBed->start, endBed->start, startWig, endWig);
-			divThread(startBed, endBed, startWig, endWig, bedRegionMerge[i]);
+			(*wigIter)->getPeakDiv(startBed->start, endBed->start, startWig, endWig);
+//			divThread(startBed, endBed, startWig, endWig, bedRegionMerge[i]);
+
+			divThread(startBed, endBed, startWig, endWig, regionMerge[i + whichSlice]);
 		}
 
-		regionMerge = mergeMetaplotRegions(bedRegionMerge);
+//		regionMerge = mergeMetaplotRegions(bedRegionMerge, bedsPerThread);
 	}
 	else
 	{
-		MetaplotRegion ** bedRegionMerge = new MetaplotRegion*[bedsPerThread];
+//		MetaplotRegion ** bedRegionMerge = new MetaplotRegion*[bedsPerThread];
 
-		for (int i = 0, i < bedsPerThread; i++)
+		for (int i = 0; i < bedsPerThread; i++)
 		{
+			regionMerge[i + whichSlice] = new MetaplotRegion(maxWindow);
+
 			MetaplotRegion ** divRegions = new MetaplotRegion*[threads->divThreads];
 			bedAr[i]->readPeaks();
 			thread threadAr[threads->divThreads];
@@ -227,15 +287,19 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 			{
 				vector<Peak>::iterator startBed, endBed, startWig, endWig;
 				bedAr[i]->getPeakDiv(threads->divThreads, j, startBed, endBed);
-				wigIter->getPeakDiv(startBed->start, endBed->start, startWig, endWig);
+				(*wigIter)->getPeakDiv(startBed->start, endBed->start, startWig, endWig);
 
-				threadAr[i] = thread(&Process::divThread, this, startBed, endBed, startWig, endWig, divRegions[j]); 
+				threadAr[i] = thread(&Process::divThread, this, startBed, endBed, startWig, endWig, ref(divRegions[j])); 
 			}
 
-			bedRegionMerge[i] = mergeMetaplotRegions(divRegions);
+			for (int k = 0; k < threads->divThreads; k++)
+				threadAr[k].join();
+
+//			bedRegionMerge[i] = mergeMetaplotRegions(divRegions, threads->divThreads);
+			regionMerge[i + whichSlice] = mergeMetaplotRegions(divRegions, threads->divThreads);
 		}
 
-		regionMerge = mergeMetaplotRegions(bedRegionMerge);
+//		regionMerge = mergeMetaplotRegions(bedRegionMerge, bedsPerThread);
 	}
 }
 
@@ -296,14 +360,14 @@ void Process::divThread(vector<Peak>::iterator bedPeakStart, vector<Peak>::itera
 	
 		thisWigPeakEnd = mid;		
 	
-		map(thisWigPeakStart, thisWigPeakEnd, iter->start, iter->strand, regionMerge);	
+		mapWig(thisWigPeakStart, thisWigPeakEnd, iter->start, iter->strand, regionMerge);	
 	} // for	
 }
 
 /* FIXME THIS ENTIRE ALGORITHM RESTS ON THE FACT THAT WINDOW % SHIFT == 0
  * EVERYTHING WILL BREAK IF THIS IS NOT TRUE */
 
-void Process::map(vector<Peak>::iterator wigPeakStart, vector<Peak>::iterator wigPeakEnd, int bedStart, char bedStrand, MetaplotRegion * &region)
+void Process::mapWig(vector<Peak>::iterator wigPeakStart, vector<Peak>::iterator wigPeakEnd, int bedStart, char bedStrand, MetaplotRegion * &region)
 {
 	for (vector<Peak>::iterator iter = wigPeakStart; iter != wigPeakEnd; iter++)
 	{	
@@ -485,11 +549,36 @@ void Process::map(vector<Peak>::iterator wigPeakStart, vector<Peak>::iterator wi
 	} // for
 }
 
+string Process::printResults(string nameStr, string nameStrR)
+{
+	print("Printing out results");
+	
+	string outfileName = "metaplot_outfile.txt";
+	ofstream file(outfileName.c_str());
+	
+	string header = "bp\t" + nameStr + "\n";
+	file << header;
+
+	int h = 0 - (maxWindow / 2);
+	
+	for (int i = 0; i < maxWindow; i++)
+	{
+		int addition = h + 1;
+		stringstream hToString;
+		hToString << addition;
+		file << hToString.str() << "\t";
+
+		for (int j = 0; i < bedNum; j++)
+		{
+		}
+	} // for
+}
+/*
 string printResults(MetaplotRegion * result, int bedNum, std::string nameStr, std::string nameStrR, int maxWindow)
 {
 
 }
-
+*/
 void monteCarlo(std::string outfile, int bedNum)
 {
 

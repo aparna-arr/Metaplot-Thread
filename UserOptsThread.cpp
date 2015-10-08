@@ -36,16 +36,6 @@ UserOpts::UserOpts(int argc, char *argv[])
 	print(msg);
 
 	string args = handleOpts(argc, argv);
-
-	if (threads.bedThreads > bedNum)
-	{
-		string err = "Your number of bedThreads is > bedNum!";
-		print(err);	
-		throw 1;
-	}
-	else if (threads.bedThreads == -1)
-		threads.bedThreads = bedNum;
-
 	stringstream input(args);	
 	
 	if (!(input >> maxWindow))
@@ -91,6 +81,16 @@ UserOpts::UserOpts(int argc, char *argv[])
 	}
 	
 	bedNum = bedsAndNames.size() / 2;
+
+	if (threads.bedThreads > bedNum)
+	{
+		string err = "Your number of bedThreads is > bedNum!";
+		print(err);	
+		throw 1;
+	}
+	else if (threads.bedThreads == -1)
+		threads.bedThreads = bedNum;
+
 
 	msg += "Bedfiles:\n";
 
@@ -159,7 +159,7 @@ void UserOpts::preprocess(void)
 		string line;
 	
 		while(getline(in,line))
-			commonChrs[line] = new vector<int>; 
+			commonChrs[line] = new vector<int>(bedNum + 1); 
 		
 		in.close();
 
@@ -204,6 +204,8 @@ void UserOpts::preprocess(void)
 	{
 		// thread bed and wig
 //		int bedsPerThread = bedNum;
+		
+		print("In Preprocess, going to thread beds");
 		thread threadAr[threads.bedThreads+1];
 
 		threadAr[0] = thread(&UserOpts::preprocessWig, this);
@@ -221,6 +223,7 @@ void UserOpts::preprocess(void)
 
 void UserOpts::split(vector<Bed *> * &bedSplit, vector<Wig *> &wigSplit)
 {
+	print("In split function");
 	if (threads.bedThreads == 0) // do not thread bed and wig
 	{
 		if (bedSplitDir != "")
@@ -236,6 +239,7 @@ void UserOpts::split(vector<Bed *> * &bedSplit, vector<Wig *> &wigSplit)
 	}
 	else
 	{
+		print("split: going to thread beds");
 		thread threadAr[threads.bedThreads+1];
 		
 		// thread Wig
@@ -253,12 +257,28 @@ void UserOpts::split(vector<Bed *> * &bedSplit, vector<Wig *> &wigSplit)
 		{
 			int bedsPerThread = bedNum / threads.bedThreads;
 
+			
+
 			for (int i = 1; i < threads.bedThreads + 1; i++)
-				threadAr[i] = thread(&UserOpts::splitBeds, this, ref(bedSplit), i * bedsPerThread, bedsPerThread);
+			{
+				print("making a thread");
+/*
+				stringstream debug;
+				debug << this_thread::get_id();
+
+				string d = "id: " + debug.str();
+
+				print(d);				
+*/
+				// FIXME EVERYTHING PUSHES TO bedSplit--NOT THREAD SAFE
+				threadAr[i] = thread(&UserOpts::splitBeds, this, ref(bedSplit), (i - 1) * bedsPerThread, bedsPerThread);
+			}
+
 			for (int j = 0; j < threads.bedThreads + 1; j++)
 				threadAr[j].join();
 		}
 
+		print("Done threading");
 	}
 	print("Done splitting beds and wigs");
 }
@@ -271,6 +291,16 @@ int UserOpts::getBedNum(void)
 int UserOpts::getMaxWindow(void)
 {
 	return maxWindow;
+}
+
+int UserOpts::getShift(void)
+{
+	return step;
+}
+
+int UserOpts::getWindow(void)
+{
+	return window;
 }
 
 std::string UserOpts::getNameStr(void)
@@ -363,6 +393,8 @@ string UserOpts::handleOpts(int argc, char * argv[])
 
 				if (!isNextInt && (opt != "threadBeds" && opt != "threadChroms"))
 					throw 2; // arg requires int
+				else if (isNextInt)
+					i++;
 			}
 
 			if (opt == "step")
@@ -470,6 +502,8 @@ void UserOpts::preprocessWig(void)
 
 void UserOpts::preprocessBedThread(int bedsPerThread, int startBed)
 {
+	print("In PreProcessBedThread");
+
 	if (mode == -1)
 		return;
 
@@ -495,12 +529,12 @@ void UserOpts::preprocessBedThread(int bedsPerThread, int startBed)
 				if (strand == '+')
 				{
 					more = start + (maxWindow / 2);
-					less = start + (maxWindow / 2);
+					less = start - (maxWindow / 2);
 				}
 				else	
 				{
 					more = end + (maxWindow / 2);	
-					less = end + (maxWindow / 2);
+					less = end - (maxWindow / 2);
 				}	
 			}
 			else if (mode == 1)
@@ -515,6 +549,7 @@ void UserOpts::preprocessBedThread(int bedsPerThread, int startBed)
 		file.close();
 		tmpfile.close();
 	} // for
+	print("End preprocess bed");
 }
 
 void UserOpts::calcSlidingWindow(std::vector<Peak> * wigBlocks)
@@ -524,35 +559,73 @@ void UserOpts::calcSlidingWindow(std::vector<Peak> * wigBlocks)
 
 void UserOpts::splitBeds(vector<Bed *> * &arOfBedfiles, int startBed, int bedsPerThread)
 {
+	stringstream id;
+	id << this_thread::get_id();
+
+	string debug = " My id: " + id.str() + " " ;
+
+	print("In splitBeds " + debug);
+
 	for (vector<string>::iterator iter = bedFiles.begin() + startBed; iter != bedFiles.begin() + startBed + bedsPerThread; iter++)
 	{
+		print("\tIn for loop" + debug);
 		ifstream file((*iter).c_str());
+		print("\tAfter iter call" + debug);
+
 		string line;
 		string prevChr = "INIT";
 
 		Bed * currBed = new Bed();
+		
+		stringstream iToS;
+		iToS << startBed;
+		
+		string start = "startBed is " + iToS.str();
+		//string debug = "File is " + (*iter);
+		print(start + debug);
+		print("\tbefore while loop" + debug);
 
 		while (getline(file, line))
 		{
+			print("\tin while loop"+ debug);
 			stringstream linestream(line);	
 			string chr; 
 			int start, end;
 			char strand;
 			linestream >> chr >> start >> end >> strand;
 				
+			print("\tafter get line and split line" + debug);
+
+			// FIXME NEED A MUTEX ON THIS
 			if (commonChrs.find(chr) == commonChrs.end())
 				continue;
 
 			if (chr != prevChr)
 			{
+				print("\t\tin first if" + debug);
 				if (prevChr != "INIT")
 				{
+					print("\t\t\tin if" + debug);
 					currBed->printPeaks();
 					Bed *  tmp = new Bed();
 					*tmp = *currBed;
+		
+					print("\t\t\tafter assigning tmp" + debug);
+
 					arOfBedfiles[iter - bedFiles.begin()].push_back(tmp);
 //					*(commonChrs[prevChr]->begin() + (iter - bedFiles.begin() + 1)) = arOfBedfiles[iter - bedFiles.begin()].size() - 1;
+					print("\t\t\tafter arOfBedfiles push" + debug);
+
+
+					// FIXME NEED A MUTEX ON THIS, OR COPY OVER!	
+					// well each should be modifying--inserting--a unique place ...
+					stringstream iToS;
+					iToS << iter - bedFiles.begin();
+					print("\t\t\tcurrBed is " + iToS.str() + debug);					
+						
+
 					commonChrs[prevChr]->insert(commonChrs[prevChr]->begin() + (iter - bedFiles.begin() + 1), arOfBedfiles[iter-bedFiles.begin()].size() - 1);
+					print("\t\t\tend of if" + debug);
 				}
 			
 				*currBed = Bed(chr, maxWindow);
@@ -561,8 +634,9 @@ void UserOpts::splitBeds(vector<Bed *> * &arOfBedfiles, int startBed, int bedsPe
 			}
 			
 			currBed->addPeak(start, end, strand);
+			print("\t\tend of first if" + debug);
 		}
-		
+		print("After while");
 		currBed->printPeaks();
 		Bed * tmp = new Bed();
 		*tmp = *currBed;
@@ -572,6 +646,8 @@ void UserOpts::splitBeds(vector<Bed *> * &arOfBedfiles, int startBed, int bedsPe
 
 		file.close();
 	}
+
+	print("splitBeds(): done with split beds" + debug);
 }
 
 void UserOpts::splitWig(vector<Wig *> &wigSplit)
@@ -800,7 +876,7 @@ void UserOpts::analyzeAndPrintChrs(map<string,int> allChrs)
 	{
 		if (iter->second == bedNum + 1)
 		{
-			commonChrs[iter->first] = new vector<int>;
+			commonChrs[iter->first] = new vector<int>(bedNum + 1);
 			out << iter->first << endl;
 		}
 	}

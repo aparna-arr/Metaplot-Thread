@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -Wall -std=c++11 -g
+CXXFLAGS := -Wall -std=c++11 -g -pthread
 OBJECTS := Main.o MetaplotThread.o ChromosomeThread.o MetaplotRegionThread.o UserOptsThread.o
 
 metaplot-thread: $(OBJECTS)
