@@ -176,7 +176,7 @@ void Wig::getPeakDiv(int startPos, int endPos, Wig * &div)
 	// do bsearch on start and end
 	// return segment of wigpeaks between [ ) start and end
 
-	cerr << "in wig get peak div" << endl;
+//	cerr << "in wig get peak div" << endl;
 	div = new Wig(chrName);
 
 	vector<Peak>::iterator min = peaks.begin();
@@ -185,7 +185,7 @@ void Wig::getPeakDiv(int startPos, int endPos, Wig * &div)
 
 	vector<Peak>::iterator startIter, endIter;
 
-	cerr << "after init" << endl;
+//	cerr << "after init" << endl;
 	
 	while (min < max)
 	{
@@ -207,7 +207,7 @@ void Wig::getPeakDiv(int startPos, int endPos, Wig * &div)
 
 	startIter = mid;
 
-	cerr << "after 1st bsearch" << endl;
+//	cerr << "after 1st bsearch" << endl;
 
 	min = mid;
 	max = peaks.end();
@@ -231,7 +231,7 @@ void Wig::getPeakDiv(int startPos, int endPos, Wig * &div)
 
 	endIter = mid;
 
-	cerr << "after 2nd bsearch" << endl;
+//	cerr << "after 2nd bsearch" << endl;
 
 	// FIXME should this be iter <= endIter??? for the case where start and end are the same? Which should never happen unless NO wig peaks over bed ...
 	for (vector<Peak>::iterator iter = startIter; iter != endIter; iter++)

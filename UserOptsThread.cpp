@@ -603,6 +603,8 @@ void UserOpts::splitBeds(vector<Bed *> * &arOfBedfiles, int startBed, int bedsPe
 		while (getline(file, line))
 		{
 //			print("\tin while loop"+ debug);
+
+			print("\ton line " +line + debug);
 			stringstream linestream(line);	
 			string chr; 
 			int start, end;
@@ -628,7 +630,7 @@ void UserOpts::splitBeds(vector<Bed *> * &arOfBedfiles, int startBed, int bedsPe
 
 					arOfBedfiles[iter - bedFiles.begin()].push_back(tmp);
 //					*(commonChrs[prevChr]->begin() + (iter - bedFiles.begin() + 1)) = arOfBedfiles[iter - bedFiles.begin()].size() - 1;
-//					print("\t\t\tafter arOfBedfiles push" + debug);
+					print("\t\t\tafter arOfBedfiles push" + debug);
 /*
 
 					// FIXME NEED A MUTEX ON THIS, OR COPY OVER!	
@@ -641,6 +643,11 @@ void UserOpts::splitBeds(vector<Bed *> * &arOfBedfiles, int startBed, int bedsPe
 					*(commonChrs[prevChr]->begin() + (iter - bedFiles.begin() + 1)) = arOfBedfiles[iter - bedFiles.begin()].size() - 1;
 //					commonChrs[prevChr]->insert(commonChrs[prevChr]->begin() + (iter - bedFiles.begin() + 1), arOfBedfiles[iter-bedFiles.begin()].size() - 1);
 //					print("\t\t\tend of if" + debug);
+					
+					stringstream bedPosS;	
+					bedPosS << arOfBedfiles[iter - bedFiles.begin()].size() - 1;
+					print("Adding to chr " + prevChr + " the pos " + bedPosS.str() + debug);
+
 				}
 			
 				*currBed = Bed(chr, maxWindow);

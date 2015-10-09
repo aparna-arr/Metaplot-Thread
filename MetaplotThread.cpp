@@ -81,8 +81,20 @@ Process::Process(int bedNumArg, int maxWindowArg, int shiftArg, int windowArg, v
 
 //	print("Process(): segfault?" + debug);
 
-	chromsPerThread = (commonChrs->size() + 1) / (threadsArg->chromThreads + 1) ; // otherwise div by 0
-	bedsPerThread = (bedNum + 1) / (threadsArg->bedThreads + 1) ; // otherwise div by 0
+//	chromsPerThread = (commonChrs->size() + 1) / (threadsArg->chromThreads + 1) ; // otherwise div by 0
+	if (threadsArg->chromThreads == 0)
+		chromsPerThread = commonChrs->size();
+	else
+		chromsPerThread = commonChrs->size() / threadsArg->chromThreads;
+
+//	bedsPerThread = (bedNum + 1) / (threadsArg->bedThreads + 1) ; // otherwise div by 0
+
+	if (threadsArg->bedThreads == 0)
+		bedsPerThread = bedNum;
+	else
+		bedsPerThread = bedNum / threadsArg->bedThreads;
+
+
 	divsPerThread = threadsArg->divThreads;
 
 //	print("Process(): segfault?" + debug);
@@ -145,6 +157,11 @@ void Process::makeChromVec(map< string, vector<int> * > * commonChrs)
 		for (vector<int>::iterator it = (iter->second)->begin(); it != (iter->second)->end(); it++)
 		{
 			(*chrs)[iter->first]->push_back(*it);
+
+			stringstream iToS;
+			iToS << *it;
+
+			print("\tmakeChromVec(): on chr " + iter->first + " with index " + iToS.str() + debug);
 		}
 
 		print("makeChromVec(): after loop" + debug);
@@ -323,32 +340,54 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 		{
 //			chromRegionMerge[iter - chromStart] = new MetaplotRegion(maxWindow);
 			
-
+			print("\tchromThread(): in first for start" + debug);
 			MetaplotRegion ** bedRegion = new MetaplotRegion*[bedNum];
 			int wigChrPos = *(chrs->find(*iter)->second->begin());
 			wigsByChr[wigChrPos]->readPeaks();
 			
+			print("\tchromThread(): after wig read peaks" + debug);
+
 			Bed *** bedAr = new Bed**[threads->bedThreads];
 			 
 			for (int i = 0; i < threads->bedThreads; i++)
 			{
+				print("\t\tchromThread(): start inner for #1" + debug);
 				bedAr[i] = new Bed*[bedsPerThread];
+
 				for (vector<int>::iterator it = chrs->find(*iter)->second->begin() + (i + 1) * bedsPerThread; it != chrs->find(*iter)->second->begin() + (i + 1 + 1) * bedsPerThread; it++)
 				{
-					int index = it - chrs->find(*iter)->second->begin()-1;
+
+					print("\t\t\tchromThread(): start innermost for" + debug);
+					int index = it - (chrs->find(*iter)->second->begin() + (i + 1) * bedsPerThread);
+
+					print("\t\t\tchromThread(): found index for chr " + *iter + debug);
+					stringstream indexToS;
+					indexToS << index;
+					print("\t\t\tchromThread(): index is " + indexToS.str() + debug);
+
+// FIXME the logic in this loop is wrong re: threading
+// somehow
 					bedAr[i][index] = *(bedsByChr[index].begin() + *it);		
+					print("\t\t\tchromThread(): end innermost for" + debug);
 				}
+
+				print("\t\tchromThread(): end inner for #1" + debug);
 			}
-			
+		
+			print("\tchromThread(): after inner for #1" + debug);	
 
 			thread threadAr[threads->bedThreads];
 //			MetaplotRegion ** regionAr = new MetaplotRegion*[threads->bedThreads];
+
+			print("\tchromThread(): before fill threadAr" + debug);
 			for (int i = 0; i < threads->bedThreads; i++)
 			{
 //				regionAr[i] = new MetaplotRegion(maxWindow);
 //				threadAr[i] = thread(&Process::bedThread, this, bedAr[i], wigsByChr.begin() + wigChrPos, ref(regionAr[i]));	
 				threadAr[i] = thread(&Process::bedThread, this, bedAr[i], wigsByChr.begin() + wigChrPos, ref(bedRegion), i);	
 			}
+
+			print("\tchromThread(): before join()" + debug);
 
 			for (int i = 0; i < threads->bedThreads; i++)
 				threadAr[i].join();
@@ -365,8 +404,10 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 
 				delete bedRegion[1];
 			}
-*/
+*/		
+			print("\tchromThread(): before merge" + debug);
 			mergeMetaplotRegionsByBed(regionMerge, bedRegion);
+			print("\tchromThread(): in first for end" + debug);
 		}
 
 		print("chromThread(): bed thread end" + debug);
@@ -395,7 +436,13 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 		{
 			Bed * bed;
 			Wig * wig;
-			print("\tbedThread(): in for start" + debug);
+
+			stringstream iToStr, bpt;
+			iToStr << i;
+
+			bpt << bedsPerThread;
+			
+			print("\tbedThread(): in for start i is " + iToStr.str() + " beds per thread: " + bpt.str() + debug);
 //			bedRegionMerge[i] = new MetaplotRegion(maxWindow);
 			regionMerge[i + whichSlice] = new MetaplotRegion(maxWindow);
 
@@ -930,17 +977,48 @@ string Process::printResults(string nameStr, string nameStrR)
 
 	int h = 0 - (maxWindow / 2);
 	
+//	print("before for");
 	for (int i = 0; i < maxWindow; i++)
 	{
-		int addition = h + 1;
+		h++;
 		stringstream hToString;
-		hToString << addition;
+		hToString << h;
 		file << hToString.str() << "\t";
 
-		for (int j = 0; i < bedNum; j++)
+		for (int j = 0; j < bedNum; j++)
 		{
+//			print("start of inner for");
+			if (region[j]->basePairs[i][1] <= 0)
+				file << "NA\t";
+			else
+			{
+				double avg = (double)region[j]->basePairs[i][0] / (double)region[j]->basePairs[i][1];
+				stringstream avgToString;	
+				avgToString << avg;
+				file << avgToString.str() << "\t";
+			}
+//			print("end of inner for");
 		}
+		file << endl;
 	} // for
+//	print("after for");
+	
+	ofstream rstream("metaplot_outfile.R");
+	rstream << "library(ggplot2)\nlibrary(reshape2)\n";
+	rstream << "pdf(file=\"metaplot_outfile.pdf\", width=12, height=8)\n";
+	rstream << "plot<-read.table(\"metaplot_outfile.txt\", header=T)\n";
+	rstream << "plot.melt<-melt(plot[,c('bp', " << nameStrR << ")], id.vars=1)\n";
+	rstream << "ggplot(plot.melt, aes(x=bp, y=value, colour=variable, group=variable)) +\n";
+	rstream << "geom_line() +\n";
+	rstream << "geom_smooth() +\n";
+	rstream << "theme_bw() +\n";
+	rstream << "ggtitle(\"Metaplot\") +\n";
+	rstream << "theme(panel.grid.minor=element_blank()) +\n";
+	rstream << "scale_colour_brewer(palette=\"Set1\", name=\"Bed\")\n";
+
+	rstream.close(); 
+
+	file.close();
 
 	return outfileName;
 }
