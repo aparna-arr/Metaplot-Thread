@@ -354,20 +354,42 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 				print("\t\tchromThread(): start inner for #1" + debug);
 				bedAr[i] = new Bed*[bedsPerThread];
 
-				for (vector<int>::iterator it = chrs->find(*iter)->second->begin() + (i + 1) * bedsPerThread; it != chrs->find(*iter)->second->begin() + (i + 1 + 1) * bedsPerThread; it++)
+				/* debug */
+				for (vector<int>::iterator deb = chrs->find("chr1")->second->begin(); deb != chrs->find("chr1")->second->end(); deb++)
+				{
+					stringstream d;
+					d << deb - (chrs->find("chr1")->second->begin());
+					print("\t\t\tchomThread(): debug index for chr1 is " + d.str() + debug);
+				}
+
+
+				for (vector<int>::iterator it = chrs->find(*iter)->second->begin() + (i * bedsPerThread) + 1; it != chrs->find(*iter)->second->begin() + (i + 1) * bedsPerThread + 1; it++)
 				{
 
 					print("\t\t\tchromThread(): start innermost for" + debug);
-					int index = it - (chrs->find(*iter)->second->begin() + (i + 1) * bedsPerThread);
+					int index = it - (chrs->find(*iter)->second->begin() + i * bedsPerThread + 1);
 
 					print("\t\t\tchromThread(): found index for chr " + *iter + debug);
-					stringstream indexToS;
+					stringstream indexToS, iToS, itDebug;
 					indexToS << index;
-					print("\t\t\tchromThread(): index is " + indexToS.str() + debug);
+					iToS << i;
+
+					stringstream itFromStart;
+					itFromStart << it - chrs->find(*iter)->second->begin();
+				// FIXME HERE IT IS! MEMORY LEAK AGAIN
+				// chromThread(): index is 1 i is 0 it 11053 My id: 47475403069440 
+					itDebug << *it;
+					print("\t\t\tchromThread(): index is " + indexToS.str() + " i is " + iToS.str() + " it " + itDebug.str() + " it from start " + itFromStart.str() + debug);
 
 // FIXME the logic in this loop is wrong re: threading
 // somehow
-					bedAr[i][index] = *(bedsByChr[index].begin() + *it);		
+					stringstream debugSize;
+					debugSize << bedsByChr[index].size();
+
+					print("\t\t\tchromThread(): bedsbyChr size " + debugSize.str() + debug);
+
+					bedAr[i][index] = *(bedsByChr[index].begin() + *it);	
+//					print("\t\t\t bedsByChr[index].begin() + *it -> getChr() is " + (*(bedsByChr[index].begin() + *it))->getChr() + debug);	
 					print("\t\t\tchromThread(): end innermost for" + debug);
 				}
 
@@ -378,6 +400,13 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 
 			thread threadAr[threads->bedThreads];
 //			MetaplotRegion ** regionAr = new MetaplotRegion*[threads->bedThreads];
+
+			for (int d = 0; d < bedsPerThread; d++)
+			{
+				print("\t\tchromThread(): debug chr is " + bedAr[0][d]->getChr());
+			}
+
+
 
 			print("\tchromThread(): before fill threadAr" + debug);
 			for (int i = 0; i < threads->bedThreads; i++)
@@ -488,6 +517,7 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 			{
 				Bed * bed;
 				Wig * wig;
+				divRegions[j] = new MetaplotRegion(maxWindow);
 				vector<Peak>::iterator startBed, endBed, startWig, endWig;
 				bedAr[i]->getPeakDiv(threads->divThreads, j, startBed, endBed, bed);
 				(*wigIter)->getPeakDiv(startBed->start, endBed->start, wig);
