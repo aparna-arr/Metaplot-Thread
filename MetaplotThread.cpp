@@ -40,6 +40,12 @@ void RunningAvg::queue(int numQueues, double val)
 	{
 		currentAvg = currentAvg - queueAr[nextEmpty] + val;
 
+		stringstream valStr, currAvgStr;
+		valStr << val;	
+		currAvgStr << currentAvg;
+
+		print("RunningAvg::queue(): currentAvg is " + currAvgStr.str() + " val is " + valStr.str());
+
 		queueAr[nextEmpty] = val;
 		nextEmpty = (nextEmpty + 1) % numShifts;
 	}
@@ -650,8 +656,14 @@ void Process::divThread(Bed * bed, Wig * wig, MetaplotRegion * &regionMerge)
 		wig->getPeakDiv(iter->start, iter->end, smallWig);
 		
 		print("\tdivThread(): before call to map" + debug);
-//		skip for now
-//		mapWig(smallWig, iter->start, iter->strand, regionMerge);	
+
+		if (smallWig->getPeakSize() == 0 || (smallWig->getPeakSize() == 1 && (smallWig->getCurrPeak()->end < iter->start || smallWig->getCurrPeak()->start > iter->end)))
+		{
+			bed->nextPeak();
+			continue;
+		}	
+
+		mapWig(smallWig, iter->start, iter->strand, regionMerge);	
 
 		bed->nextPeak();
 		print("\tdivThread(): in while end" + debug);
@@ -736,34 +748,57 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 
 	string debug = " My id: " + id.str() + " " ;
 
-	print("mapWig(): start" + debug);
+	stringstream wigSize;
+	wigSize << wig->getPeakSize();
+
+	stringstream bedStartStr;
+	bedStartStr << bedStart;
+
+	print("mapWig(): start wigSize is " + wigSize.str() + " bedStart is " + bedStartStr.str() + debug);
 
 	while(wig->isValid())
 	{
+		print("mapWig(): in while" + debug);
 		vector<Peak>::iterator iter = wig->getCurrPeak();
+
+		stringstream startToStr, valToStr;
+		startToStr << iter->start;
+		valToStr << iter->value;
+	
+		print("mapWig(): iter->start is " + startToStr.str() + " value is " + valToStr.str() + debug);
 
 		RunningAvg avg(window, shift);
 
 		vector<Peak>::iterator backIter = iter; 	
 		vector<Peak>::iterator fwdIter = iter; 
 
+		// USING ITER LIKE IT REFERS TO BED! IT REFERS TO WIG
 		while (backIter != wig->firstPeak() && backIter->end > (iter->start - window))	
 			backIter++; // ++ is -- !!! because stack-like ops. 
 
 		if (backIter->end < iter->start - window)
 			backIter--;
+//		else if (backIter->start > iter->end + window)
+//			return;
+
+		print("mapWig(): after set backIter" + debug);
 	
 		while(fwdIter != wig->endPeak() && fwdIter->start < (iter->end + window))
 			fwdIter--;
 
 		if (fwdIter->start > iter->end + window)
 			fwdIter++;
+//		else if (fwdIter->end < iter->start - window)
+//			return;
+
+		print("mapWig(): after set fwdIter" + debug);
 
 		int pos = iter->start - window;
 
 //		while((backIter == wig->firstPeak()) || backIter < iter)
 		while(backIter < iter)
 		{
+			print ("\tmapWig(): while backIter < iter" + debug);
 			int backSignalLen = backIter->end - pos;
 			
 			avg.queue(backSignalLen / shift, backIter->value * shift);
@@ -789,10 +824,13 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 			avg.queue(cond, backIter->value * rem);
 
 			pos += rem;
-		}		
+		}	
+
+		print("mapWig(): after init while loop" + debug);	
 
 		region->addSignal(pos - bedStart, 1, avg.getAvg(), bedStrand);
 
+		print("mapWig(): after addSignal" + debug);
 // FIXME no idea what's going on after this point	
 
 		int numSlidingWindow = 0;
@@ -803,9 +841,13 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 		if (fwdIter != iter)
 			nextOverlap = fwdIter->start - window;
 
-		if (nextOverlap < iter->start)
+		print("mapWig(): before if/else" + debug);
+//		if (nextOverlap < iter->start)
+		if (nextOverlap < iter->end)
 		{
-			numSlidingWindow = (nextOverlap + window - iter->start) / shift;
+			print("\tmapWig(): in if" + debug);
+//			numSlidingWindow = (nextOverlap + window - iter->start) / shift;
+			numSlidingWindow = (nextOverlap + window - iter->end) / shift;
 
 			for (int i = 0; i < numSlidingWindow; i++)
 			{
@@ -816,6 +858,7 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 		}
 		else
 		{
+			print("\tmapWig(): in else" + debug);
 			numSlidingWindow = window / shift;
 
 			for (int i = 0; i < numSlidingWindow; i++)
@@ -825,18 +868,27 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 				pos += shift;
 			}
 
+			print("\tmapWig(): after for" + debug);
+
 			int nextEnd = iter->end;
 
 			if (fwdIter != iter)
 				nextEnd = fwdIter->start - window;
 
+			print("\tmapWig(): after if" + debug);
+
 			int middle_len = (nextEnd - pos) / shift;
-			
+		
+
+			print("\tmapWig(): before addSignal" + debug);	
 			region->addSignal(pos - bedStart, middle_len, avg.getAvg(), bedStrand);
+			print("\tmapWig(): after addSignal" + debug);	
 
 			pos += middle_len * shift;
 		}
 	
+		print("mapWig(): before if fwdIter == iter" + debug);
+
 		if (fwdIter == iter)
 		{
 			int shift_start = numSlidingWindow * shift + iter->start;
@@ -846,7 +898,8 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 
 			avg.queue(len, rem * iter->value);
 		
-			region->addSignal( pos - bedStart, len, rem * iter->value, bedStrand);
+//			region->addSignal( pos - bedStart, len, rem * iter->value, bedStrand);
+			region->addSignal( pos - bedStart, rem, avg.getAvg(), bedStrand);
 
 			while(pos < shift_start)
 			{
@@ -856,10 +909,13 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 			}
 
 		}
-
+	
+		print("mapWig(): before wig->nextPeak()" + debug);
 
 		wig->nextPeak();
+		print("mapWig(): end of while" + debug);
 	}
+	print("mapWig(): end" + debug);
 /*	
 
 
