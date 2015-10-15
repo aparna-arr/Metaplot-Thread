@@ -388,7 +388,14 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 
 					print("\t\t\tchromThread(): bedsbyChr size " + debugSize.str() + debug);
 
-					bedAr[i][index] = *(bedsByChr[index].begin() + *it);	
+					bedAr[i][index] = *(bedsByChr[index].begin() + *it);
+
+					stringstream iToStr, indexToStr;
+					iToStr << i;
+					indexToStr << index;
+
+				// FIXME all threads get the same file!!! WHY
+					print("\t\t\tchromThread(): for i is " + iToStr.str() + " index is " + indexToStr.str() + " file is " + (*(bedsByChr[index].begin()))->getFilename() + debug);	
 //					print("\t\t\t bedsByChr[index].begin() + *it -> getChr() is " + (*(bedsByChr[index].begin() + *it))->getChr() + debug);	
 					print("\t\t\tchromThread(): end innermost for" + debug);
 				}
@@ -463,15 +470,19 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 
 		for (int i = 0; i < bedsPerThread; i++)
 		{
+			print ("bedThread(): in for " + debug);
 			Bed * bed;
 			Wig * wig;
 
-			stringstream iToStr, bpt;
+			stringstream iToStr, bpt, sliceToStr, startStr;
 			iToStr << i;
 
 			bpt << bedsPerThread;
+
+			sliceToStr << whichSlice;
+
 			
-			print("\tbedThread(): in for start i is " + iToStr.str() + " beds per thread: " + bpt.str() + debug);
+			print("\tbedThread(): in for start i is " + iToStr.str() + " beds per thread: " + bpt.str() + " whichSlice : " + sliceToStr.str() +  debug);
 //			bedRegionMerge[i] = new MetaplotRegion(maxWindow);
 			regionMerge[i + whichSlice] = new MetaplotRegion(maxWindow);
 
@@ -480,14 +491,40 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 			print("\tbedThread(): bedAr[i]->getChr() is " + bedAr[i]->getChr() + debug);
 
 			bedAr[i]->readPeaks();
+			startStr << bedAr[i]->firstPeak()->start;
 
-			print("\tbedThread(): after readPeaks()" + debug);
+			print("\tbedThread(): after readPeaks() firstPeak start is " + startStr.str() + debug);
 			
 			vector<Peak>::iterator startBed, endBed, startWig, endWig;
 			bedAr[i]->getPeakDiv(0, 0, startBed, endBed, bed);
-
+//				stringstream bedstarttest, bedendtest, bedEndEnd;
+//				bedstarttest << startBed->start;
+//				bedendtest << endBed->start;
+//				bedEndEnd << endBed->end;
+//				print("\t\tbedThread(): startbed start is " + bedstarttest.str() + " endbed start is " + bedendtest.str() + " bedEnd end " + bedEndEnd.str() + debug);
+//				print("\t\tbedThread(): startbed start is " + bedstarttest.str() + debug);
 			print("\tbedThread(): after bedAr->getPeakDiv()" + debug);
-			(*wigIter)->getPeakDiv(startBed->start, endBed->start, wig);
+
+// Issue:
+// *** Error in `	bedThread(): after bedAr->getPeakDiv() My id: 47642893563648 
+// 	bedThread(): endPeak() == peaks.end() My id: 47642893563648 
+// 	bedThread(): endPeak() == peaks.end() My id: 47642893563648 
+//  --threadBeds 2
+//  appears that a thread is duplicated somehow?
+
+			if (bed->endPeak() == bed->firstPeak() - bed->getPeakSize())
+			{
+				print("\tbedThread(): endPeak() == peaks.end()" + debug);
+				(*wigIter)->getPeakDiv(bed->firstPeak()->start, (bed->endPeak() + 1)->end, wig);
+			}
+			else
+			{
+				print("\tbedThread(): endPeak() != peaks.end()" + debug);
+				(*wigIter)->getPeakDiv(bed->firstPeak()->start, (bed->endPeak())->start, wig);
+			}
+
+
+//			(*wigIter)->getPeakDiv(startBed->start, endBed->start, wig);
 			print("\tbedThread(): after wigIter->getPeakDiv()" + debug);
 //			divThread(startBed, endBed, startWig, endWig, bedRegionMerge[i]);
 
@@ -502,11 +539,12 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 	}
 	else
 	{
-		print("bedThread(): div thread start" + debug);
+		print("bedThread(): else: div thread start" + debug);
 //		MetaplotRegion ** bedRegionMerge = new MetaplotRegion*[bedsPerThread];
 
 		for (int i = 0; i < bedsPerThread; i++)
 		{
+			print("bedThread(): start of bedsPerThread for" + debug);
 			regionMerge[i + whichSlice] = new MetaplotRegion(maxWindow);
 
 			MetaplotRegion ** divRegions = new MetaplotRegion*[threads->divThreads];
@@ -515,22 +553,55 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 			
 			for (int j = 0; j < threads->divThreads; j++)
 			{
+				print("bedThread(): start of threads->divThreads for" + debug);
 				Bed * bed;
 				Wig * wig;
 				divRegions[j] = new MetaplotRegion(maxWindow);
 				vector<Peak>::iterator startBed, endBed, startWig, endWig;
 				bedAr[i]->getPeakDiv(threads->divThreads, j, startBed, endBed, bed);
-				(*wigIter)->getPeakDiv(startBed->start, endBed->start, wig);
+// FIXME debugging here
+// I think the issue is that I didn't update getPeakDiv to handle bed peaks as a stack
 
-				threadAr[i] = thread(&Process::divThread, this, bed, wig, ref(divRegions[j])); 
+//				stringstream bedstarttest, bedendtest, bedEndEnd;
+//				bedstarttest << startBed->start;
+//				bedendtest << endBed->start;
+//				bedEndEnd << endBed->end;
+//				print("\t\tbedThread(): startbed start is " + bedstarttest.str() + " endbed start is " + bedendtest.str() + " endBed end " + bedEndEnd.str()+ debug);
+//			print("\t\tbedThread(): startbed start is " + bedstarttest.str() + debug);
+
+				// FIXME EndBed is not always valid!! 
+//				(*wigIter)->getPeakDiv(startBed->start, (endBed-1)->end, wig);
+//				int start, end;
+//				start = bed->firstPeak()->start;
+//				end = bed->endPeak()->end;
+
+				if (bed->endPeak() == bed->firstPeak() - bed->getPeakSize())
+				{
+//					print("\t\tbedThread(): endPeak() == peaks.end()!" + debug);
+					(*wigIter)->getPeakDiv(bed->firstPeak()->start, (bed->endPeak() + 1)->end, wig);
+				}
+				else
+					(*wigIter)->getPeakDiv(bed->firstPeak()->start, (bed->endPeak())->start, wig);
+			
+				stringstream wigSize;
+				wigSize << wig->getPeakSize();
+				print("\tbedThread(): wig size is " + wigSize.str() + debug);
+
+
+				print("\tbedThread(): Before thread()" + debug);
+				threadAr[j] = thread(&Process::divThread, this, bed, wig, ref(divRegions[j])); 
+				print("\tbedThread(): After thread()" + debug);
 			}
 
 			for (int k = 0; k < threads->divThreads; k++)
 				threadAr[k].join();
 
+			print("bedThread(): After join()" + debug);
+
 //			bedRegionMerge[i] = mergeMetaplotRegions(divRegions, threads->divThreads);
 			regionMerge[i + whichSlice] = mergeMetaplotRegions(divRegions, threads->divThreads);
 		}
+
 		print("bedThread(): div thread end" + debug);
 
 //		regionMerge = mergeMetaplotRegions(bedRegionMerge, bedsPerThread);
@@ -559,7 +630,8 @@ void Process::divThread(Bed * bed, Wig * wig, MetaplotRegion * &regionMerge)
 		wig->getPeakDiv(iter->start, iter->end, smallWig);
 		
 		print("\tdivThread(): before call to map" + debug);
-		mapWig(smallWig, iter->start, iter->strand, regionMerge);	
+//		skip for now
+//		mapWig(smallWig, iter->start, iter->strand, regionMerge);	
 
 		bed->nextPeak();
 		print("\tdivThread(): in while end" + debug);

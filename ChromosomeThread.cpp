@@ -123,6 +123,8 @@ void Wig::printPeaks(void)
 	{
 		Peak tmp = *currPeak;
 		fstream << chrName << "\t" << tmp.start << "\t" << tmp.end << "\t" << tmp.value << endl;
+//		cerr << "printing " << chrName << "\t" << tmp.start << endl;
+
 		nextPeak();
 		peaks.pop_back(); // remove last element
 	}
@@ -162,6 +164,8 @@ void Wig::addPeak(int start, int end, double value)
 
 	peaks.push_back(tmp);
 
+//	cerr << "adding wig peak " << chrName << "\t" << start << endl;
+
 	Chromosome::addPeak(); // handles currPeak
 }
 
@@ -172,76 +176,111 @@ void Wig::generateFilename(void)
 
 void Wig::getPeakDiv(int startPos, int endPos, Wig * &div)
 {
-	cerr << "in wig Get Peak Div" << endl;
+//	cerr << "in wig Get Peak Div" << endl;
 	// do bsearch on start and end
 	// return segment of wigpeaks between [ ) start and end
 
 //	cerr << "in wig get peak div" << endl;
 	div = new Wig(chrName);
 
-	vector<Peak>::iterator min = peaks.begin();
-	vector<Peak>::iterator max = peaks.end();
-	vector<Peak>::iterator mid = (max - min) / 2 + min;
+	vector<Peak>::iterator max = peaks.begin();
+	vector<Peak>::iterator min = peaks.end();
+	vector<Peak>::iterator mid = (min - max) / 2 + max;
+
+//	cerr << "mid - max is " << mid - max << endl;
+
+//	if (min == max)
+//		cerr << "begin() == end()" << endl;
+//	else
+//	{
+//		cerr << "min - max is " << min - max << endl;
+//		for (vector<Peak>::iterator iter = peaks.begin(); iter != peaks.end(); iter++)
+//		{
+//			cerr << "\tpeak is " << iter->start << endl;
+//		}
+//	}
 
 	vector<Peak>::iterator startIter, endIter;
 
-	cerr << "after init startpos is " <<startPos << " endpos is " << endPos << endl;
+
+//	if (mid == min)
+//		cerr << "mid == min!" <<endl;
+//	else if (mid == max)
+//		cerr << "mid == max!" << endl;
+//	else
+//		cerr << "mid != min | max" << endl;
+
+//	cerr << "after init startpos is " <<startPos << " endpos is " << endPos << endl;
+//	cerr << "mid start is " << mid->start << " end is " << mid->end << endl;
 	
-	while (min < max)
+	while (max <= min)
 	{
-		cerr << "in while" << endl;
-		mid = (max - min) / 2 + min;
+//		cerr << "in while" << endl;
+		mid = (min - max) / 2 + max;
+//	cerr << "mid start is " << mid->start << " end is " << mid->end << endl;
 		
 		if (mid->start == startPos)
 			break;
 		else if (mid->start < startPos)
-			max = mid - 1;
+			min = mid - 1;
 		else if (mid->start > startPos)
-			min = mid + 1;
+			max = mid + 1;
 	}
 	
-	cerr << "After while" << endl;
+//	cerr << "After while" << endl;
+//	cerr << "mid start is " << mid->start << " end is " << mid->end << endl;
 
 //	cerr << "Mid start is " << mid->start << endl;
-	if (mid->end < startPos)
-		mid++;
-
-	cerr << "After first if" << endl;
-	
-	if (mid != peaks.begin() && (mid - 1)->end > startPos)
+//	cerr << "before first if startPos is " << startPos << " mid->start is " << mid->start << " mid->end is " << mid->end << endl;
+	if (mid != peaks.begin() && mid->end < startPos)
 		mid--;
+
+
+// FIXME modifying this caused the dreaded terminate called without an active exception
+// error -> fixed and this had nothing to do with it!	
+	if (mid < peaks.end() - 1 && mid->start > startPos && (mid+1)->end > startPos)
+		mid++;
 
 	startIter = mid;
 
-	cerr << "after 1st bsearch" << endl;
+//	cerr << "after 1st bsearch startIter is " << startIter->start << endl;
 
-	min = mid;
-	max = peaks.end();
+	max = peaks.begin();
+	min = peaks.end();
 	
-	while(min < max)
+	while(max <= min)
 	{
-		mid = (max - min) / 2 + min;
+		mid = (min - max) / 2 + max;
+//	cerr << "mid start is " << mid->start << " end is " << mid->end << endl;
 
-		if(mid->end == endPos)
+		if(mid->start == endPos)
 			break;
-		else if (mid->end < endPos)
-			max = mid - 1;
-		else if (mid->end > endPos)
-			min = mid + 1;
+		else if (mid->start < endPos)
+			min = mid - 1;
+		else if (mid->start > endPos)
+			max = mid + 1;
 	}	
 
-	if (mid != startIter && (mid-1)->start > endPos)
-		mid--;
-	if (mid != peaks.end() && mid->end < endPos)
+//	cerr << "after 2nd bsearch before ifs mid is " << mid->start << endl;
+	if (mid < peaks.end() - 1 && (mid-1)->start > endPos)
 		mid++;
+	if (mid != peaks.begin() && mid->end < endPos)
+		mid--;
 
 	endIter = mid;
 
-	cerr << "after 2nd bsearch" << endl;
+//	cerr << "after 2nd bsearch endIter is " << endIter->start << endl;
+
+//	if (startIter < endIter)
+//		cerr << "startIter < endIter" << endl;
 
 	// FIXME should this be iter <= endIter??? for the case where start and end are the same? Which should never happen unless NO wig peaks over bed ...
-	for (vector<Peak>::iterator iter = startIter; iter != endIter; iter++)
+
+//	cerr << "startIter - endIter is " << startIter - endIter << endl;
+	for (vector<Peak>::iterator iter = endIter; iter <= startIter; iter++)
 		div->addPeak(iter->start, iter->end, iter->value);
+	
+//	cerr << "end of getPeakDiv" << endl;
 }
 
 /* End Wig functions */
@@ -309,7 +348,16 @@ void Bed::getPeakDiv (int numDivs, int iteration, vector<Peak>::iterator &startI
 
 	div = new Bed(chrName, peakLen);
 
-	int sizeOfDiv = (peaks.size() + 1) / (numDivs + 1);
+//	int sizeOfDiv = (peaks.size() + 1) / (numDivs + 1);
+
+	int sizeOfDiv;
+	if (numDivs == 0)
+		sizeOfDiv = peaks.size();
+	else
+		sizeOfDiv = peaks.size() / numDivs;
+
+//	cerr << "Bed():getPeakDiv(): sizeOfDiv is " << sizeOfDiv << endl;
+//	cerr << "peaks size is " << peaks.size() << endl;
 
 	startIter = peaks.begin() + sizeOfDiv * iteration;
 
@@ -318,9 +366,33 @@ void Bed::getPeakDiv (int numDivs, int iteration, vector<Peak>::iterator &startI
 	else
 		endIter = peaks.begin() + sizeOfDiv * (iteration + 1);
 
+//	if (endIter == peaks.end())
+//		cerr << "endIter == peaks.end()" << endl;
+
 	// FIXME same question as Wig::getPeakDiv
 	for (vector<Peak>::iterator iter = startIter; iter != endIter; iter++)
 		div->addPeak(iter->start, iter->end, iter->strand);
 }
 	
+vector<Peak>::iterator Bed::firstPeak(void)
+{
+	if (!peaks.empty())
+		return peaks.end() - 1;
+	else
+	{
+		currPeakValid = false;
+		return peaks.end();
+	}
+}
+
+vector<Peak>::iterator Bed::endPeak(void)
+{
+	if (!peaks.empty())
+		return peaks.begin() - 1;
+	else
+	{
+		currPeakValid = false;
+		return peaks.end();
+	}
+}
 /* End Bed functions */

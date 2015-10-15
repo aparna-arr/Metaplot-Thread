@@ -45,6 +45,7 @@ class Chromosome
 	bool isValid(void);
 	int getPeakSize(void);
 	virtual void getPeakDiv(void) { } ;
+	std::string getFilename(void) { return fileName; }
 	
 	protected:
 	virtual void generateFilename(void);
@@ -93,6 +94,8 @@ class Bed : public Chromosome
 	virtual void addPeak(int start, int end, char strand);
 	virtual void generateFilename(int filenum);
 	virtual void getPeakDiv(int numDivs, int iteration, std::vector<Peak>::iterator &startIter, std::vector<Peak>::iterator &endIter, Bed * &div);	
+	std::vector<Peak>::iterator firstPeak(void);
+	std::vector<Peak>::iterator endPeak(void);
 
 	private: 
 	int peakLen;

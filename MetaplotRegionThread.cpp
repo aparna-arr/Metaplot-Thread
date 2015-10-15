@@ -17,8 +17,8 @@ MetaplotRegion::MetaplotRegion(int len)
 
 void MetaplotRegion::addSignal(int offset, int len, double value, char strand)
 {
-	cerr << "In addSignal" << endl;
-	cerr << "offset is " << offset << " len is " << len << endl;
+//	cerr << "In addSignal" << endl;
+//	cerr << "offset is " << offset << " len is " << len << endl;
 	
 	if (offset < 0 || len <= 0)
 		return;
@@ -39,5 +39,5 @@ void MetaplotRegion::addSignal(int offset, int len, double value, char strand)
 			basePairs[i][1]++;
 		}
 	}
-	cerr << "End of addSignal" << endl;
+//	cerr << "End of addSignal" << endl;
 }

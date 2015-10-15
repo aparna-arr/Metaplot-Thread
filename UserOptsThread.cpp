@@ -581,9 +581,16 @@ void UserOpts::splitBeds(vector<Bed *> * &arOfBedfiles, int startBed, int bedsPe
 
 	print("In splitBeds " + debug);
 
+	stringstream startBedToI, bedsPerThreadToI;
+	startBedToI << startBed;
+	bedsPerThreadToI << bedsPerThread;
+
+	print("splitBeds(): startBed is " + startBedToI.str() + " bedsPerThread is " + bedsPerThreadToI.str() + debug);
+
+
 	for (vector<string>::iterator iter = bedFiles.begin() + startBed; iter != bedFiles.begin() + startBed + bedsPerThread; iter++)
 	{
-//		print("\tIn for loop" + debug);
+		print("\tIn for loop" + debug);
 		ifstream file((*iter).c_str());
 //		print("\tAfter iter call" + debug);
 
@@ -658,7 +665,7 @@ void UserOpts::splitBeds(vector<Bed *> * &arOfBedfiles, int startBed, int bedsPe
 			currBed->addPeak(start, end, strand);
 //			print("\t\tend of first if" + debug);
 		}
-//		print("After while");
+		print("After while");
 		currBed->printPeaks();
 		Bed * tmp = new Bed();
 		*tmp = *currBed;
@@ -666,6 +673,8 @@ void UserOpts::splitBeds(vector<Bed *> * &arOfBedfiles, int startBed, int bedsPe
 //		*(commonChrs[prevChr]->begin()+ (iter - bedFiles.begin() + 1)) = arOfBedfiles[iter - bedFiles.begin()].size() - 1;
 		*(commonChrs[prevChr]->begin() + (iter - bedFiles.begin() + 1)) = arOfBedfiles[iter - bedFiles.begin()].size() - 1;
 //		commonChrs[prevChr]->insert(commonChrs[prevChr]->begin() + (iter - bedFiles.begin() + 1), arOfBedfiles[iter-bedFiles.begin()].size() - 1);
+
+		print("splitBeds(): before file close" + debug);
 
 		file.close();
 	}
@@ -700,6 +709,7 @@ void UserOpts::splitWig(vector<Wig *> &wigSplit)
 
 //		print("splitWig(): in while" + debug);
 
+		print("splitWig(): while start line is " + line + debug);
 		stringstream linestream(line);
 		stringstream test(line);
 		int pos;
@@ -712,11 +722,18 @@ void UserOpts::splitWig(vector<Wig *> &wigSplit)
 			linestream >> substring; // variableStep
 			linestream >> substring; // chrom=
 	
+//			print("splitWig(): substring is " + substring + debug);
 			string chr = substring.substr(substring.find("=") + 1, substring.length());
-			
-			if (commonChrs.find(chr) == commonChrs.end())
+
+// DO NOT UNCOMMENT
+// AT ALL
+// OR ELSE CRAZY STUFF THAT IS HARD TO DEBUG HAPPENS
+//
+//			if (commonChrs.find(chr) == commonChrs.end())
+//				continue;
 
 			linestream >> substring; // span=
+//			print("splitWig(): substring is " + substring + debug);
 
 			string span = substring.substr(substring.find("=") + 1, substring.length());
 
@@ -746,10 +763,16 @@ void UserOpts::splitWig(vector<Wig *> &wigSplit)
 			}
 			stringstream itoS(span);
 			itoS >> currSpan;
+//			print("splitwig(): currSpan is " + itoS.str() + debug);
 		}
 		else
 		{
 			linestream >> pos >> val;
+		
+			print ("splitwig(): before addPeak linestream is " + linestream.str() + debug);	
+//			stringstream spanStr;
+//			spanStr << currSpan;
+//			print("In Else currSpan is " + spanStr.str() + debug);
 			currWig->addPeak(pos, pos+currSpan, val);
 		}
 
@@ -758,6 +781,8 @@ void UserOpts::splitWig(vector<Wig *> &wigSplit)
 
 
 	print("splitWig(): after while" + debug);
+
+
 	if (commonChrs.find(currChr) != commonChrs.end())
 	{
 
@@ -781,6 +806,8 @@ void UserOpts::splitWig(vector<Wig *> &wigSplit)
 
 		print("splitWig(): after assign commmonChr" + debug);
 	}
+
+
 	fstream.close();
 	print("splitWig(): Done" + debug);
 }
