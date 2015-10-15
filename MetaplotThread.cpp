@@ -384,18 +384,18 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 // FIXME the logic in this loop is wrong re: threading
 // somehow
 					stringstream debugSize;
-					debugSize << bedsByChr[index].size();
+					debugSize << bedsByChr[index + i].size();
 
 					print("\t\t\tchromThread(): bedsbyChr size " + debugSize.str() + debug);
 
-					bedAr[i][index] = *(bedsByChr[index].begin() + *it);
+					bedAr[i][index] = *(bedsByChr[index + i].begin() + *it);
 
 					stringstream iToStr, indexToStr;
 					iToStr << i;
 					indexToStr << index;
 
-				// FIXME all threads get the same file!!! WHY
-					print("\t\t\tchromThread(): for i is " + iToStr.str() + " index is " + indexToStr.str() + " file is " + (*(bedsByChr[index].begin()))->getFilename() + debug);	
+				// FIXME all threads get the same file!!! WHY -> made bedsByChr[index] to [index + i]
+					print("\t\t\tchromThread(): for i is " + iToStr.str() + " index is " + indexToStr.str() + " file is " + (*(bedsByChr[index + i].begin()))->getFilename() + debug);	
 //					print("\t\t\t bedsByChr[index].begin() + *it -> getChr() is " + (*(bedsByChr[index].begin() + *it))->getChr() + debug);	
 					print("\t\t\tchromThread(): end innermost for" + debug);
 				}
@@ -544,7 +544,10 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 
 		for (int i = 0; i < bedsPerThread; i++)
 		{
-			print("bedThread(): start of bedsPerThread for" + debug);
+			stringstream iToS;
+			iToS << i;
+
+			print("bedThread(): start of bedsPerThread for i is " + iToS.str() + debug);
 			regionMerge[i + whichSlice] = new MetaplotRegion(maxWindow);
 
 			MetaplotRegion ** divRegions = new MetaplotRegion*[threads->divThreads];
@@ -558,6 +561,16 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 				Wig * wig;
 				divRegions[j] = new MetaplotRegion(maxWindow);
 				vector<Peak>::iterator startBed, endBed, startWig, endWig;
+				
+				// FIXME
+				// ah, here is the problem
+				// peakDiv divides # of peaks
+				// but this bed file has only 1 peak
+				// and we want 2 minimum to do peakDiv (--threadDivisions 2)
+				// basically that last div, which may not be perfectly divisible by thread #, is a problem
+				// for now, fixed the 0 case with return if bed->getPeakSize == 0
+				// but any case < # peaks per div will cause array overflow in map()
+	
 				bedAr[i]->getPeakDiv(threads->divThreads, j, startBed, endBed, bed);
 // FIXME debugging here
 // I think the issue is that I didn't update getPeakDiv to handle bed peaks as a stack
@@ -575,14 +588,21 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 //				start = bed->firstPeak()->start;
 //				end = bed->endPeak()->end;
 
+				if (bed->getPeakSize() == 0)
+					return;
+
+				print("bedThread(): before wig->getPeakDiv" + debug);
 				if (bed->endPeak() == bed->firstPeak() - bed->getPeakSize())
 				{
-//					print("\t\tbedThread(): endPeak() == peaks.end()!" + debug);
+					stringstream sizeToI;
+					sizeToI << bed->getPeakSize();
+					print("\t\tbedThread(): endPeak() == peaks.end()! Peak size is " + sizeToI.str() + " bed chr is " + bed->getChr() + debug);
 					(*wigIter)->getPeakDiv(bed->firstPeak()->start, (bed->endPeak() + 1)->end, wig);
 				}
 				else
 					(*wigIter)->getPeakDiv(bed->firstPeak()->start, (bed->endPeak())->start, wig);
 			
+				print("bedThread(): after wig->getPeakDiv" + debug);
 				stringstream wigSize;
 				wigSize << wig->getPeakSize();
 				print("\tbedThread(): wig size is " + wigSize.str() + debug);

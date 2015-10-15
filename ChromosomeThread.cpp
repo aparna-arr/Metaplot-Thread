@@ -176,7 +176,7 @@ void Wig::generateFilename(void)
 
 void Wig::getPeakDiv(int startPos, int endPos, Wig * &div)
 {
-//	cerr << "in wig Get Peak Div" << endl;
+	cerr << "in wig Get Peak Div" << endl;
 	// do bsearch on start and end
 	// return segment of wigpeaks between [ ) start and end
 

@@ -572,8 +572,6 @@ void UserOpts::calcSlidingWindow(std::vector<Peak> * wigBlocks)
 
 void UserOpts::splitBeds(vector<Bed *> * &arOfBedfiles, int startBed, int bedsPerThread)
 {
-
-
 	stringstream id;
 	id << this_thread::get_id();
 
@@ -586,7 +584,6 @@ void UserOpts::splitBeds(vector<Bed *> * &arOfBedfiles, int startBed, int bedsPe
 	bedsPerThreadToI << bedsPerThread;
 
 	print("splitBeds(): startBed is " + startBedToI.str() + " bedsPerThread is " + bedsPerThreadToI.str() + debug);
-
 
 	for (vector<string>::iterator iter = bedFiles.begin() + startBed; iter != bedFiles.begin() + startBed + bedsPerThread; iter++)
 	{
