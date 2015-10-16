@@ -842,16 +842,32 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 			nextOverlap = fwdIter->start - window;
 
 		print("mapWig(): before if/else" + debug);
-//		if (nextOverlap < iter->start)
-		if (nextOverlap < iter->end)
+
+// THIS IF CONDITION ACTUALLY DOES MAKE SENSE--study it before changing (LOOK AT NEXTOVERLAP. DRAW)
+		if (nextOverlap < iter->start)
 		{
 			print("\tmapWig(): in if" + debug);
 //			numSlidingWindow = (nextOverlap + window - iter->start) / shift;
 			numSlidingWindow = (nextOverlap + window - iter->end) / shift;
 
+			stringstream winStr;
+			winStr << numSlidingWindow;
+
+			cerr << "nextOverlap " << nextOverlap << " window " << window << " iter->end " << iter->end << " shift " << shift << endl; 
+
+			print("\tmapWig(): numSlidingWindow is " + winStr.str() + debug);
+
 			for (int i = 0; i < numSlidingWindow; i++)
 			{
-				avg.queue(1, iter->value * shift);
+				avg.queue(1, (double)iter->value * shift);
+
+				double result = (double) iter->value *shift;
+
+				stringstream resultToStr;
+				resultToStr << result;
+
+				print("mapWig(): result is " + resultToStr.str() + debug);
+			
 				region->addSignal(pos - bedStart, 1, avg.getAvg(), bedStrand);
 				pos += shift;
 			}
@@ -873,18 +889,24 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 			int nextEnd = iter->end;
 
 			if (fwdIter != iter)
-				nextEnd = fwdIter->start - window;
+			{
+			nextEnd = fwdIter->start - window;
 
 			print("\tmapWig(): after if" + debug);
 
 			int middle_len = (nextEnd - pos) / shift;
 		
+			stringstream nextEndStr, posStr, bedStartStr;
+			nextEndStr << nextEnd;
+			posStr << pos;
+			bedStartStr << bedStart;
 
-			print("\tmapWig(): before addSignal" + debug);	
+			print("\tmapWig(): before addSignal nextEnd = " + nextEndStr.str() + " bedStart : " + bedStartStr.str() + " pos: " + posStr.str()+ debug);	
 			region->addSignal(pos - bedStart, middle_len, avg.getAvg(), bedStrand);
 			print("\tmapWig(): after addSignal" + debug);	
 
 			pos += middle_len * shift;
+			}
 		}
 	
 		print("mapWig(): before if fwdIter == iter" + debug);
