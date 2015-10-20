@@ -7,6 +7,20 @@ void print(string msg)
 	cout << msg << endl; 
 } 
 
+string convertI(int num)
+{
+	stringstream string;
+	string << num;
+	return string.str();
+}
+
+string convertD(double num)
+{
+	stringstream string;
+	string << num;
+	return string.str();
+}
+
 /* RunningAvg functions */
 
 RunningAvg::RunningAvg()
@@ -18,6 +32,7 @@ RunningAvg::RunningAvg(int window, int shift)
 {
 	// FIXME expect window % shift == 0
 	numShifts = window / shift;
+	windowSize = window;
 	queueAr = new double[numShifts];
 
 	for (int i = 0; i < numShifts; i++)
@@ -44,7 +59,7 @@ void RunningAvg::queue(int numQueues, double val)
 		valStr << val;	
 		currAvgStr << currentAvg;
 
-		print("RunningAvg::queue(): currentAvg is " + currAvgStr.str() + " val is " + valStr.str());
+//		print("RunningAvg::queue(): currentAvg is " + currAvgStr.str() + " val is " + valStr.str());
 
 		queueAr[nextEmpty] = val;
 		nextEmpty = (nextEmpty + 1) % numShifts;
@@ -58,7 +73,7 @@ void RunningAvg::next(int num)
 
 double RunningAvg::getAvg(void)
 {
-	return currentAvg;
+	return (double)currentAvg / windowSize;
 }
 
 /* end RunningAvg functions */
@@ -74,7 +89,7 @@ Process::Process(int bedNumArg, int maxWindowArg, int shiftArg, int windowArg, v
 
 	string debug = " My id: " + id.str() + " " ;
 
-	print("Process(): start" + debug);
+//	print("Process(): start" + debug);
 
 	bedNum = bedNumArg;
 	maxWindow = maxWindowArg;
@@ -83,7 +98,7 @@ Process::Process(int bedNumArg, int maxWindowArg, int shiftArg, int windowArg, v
 
 	stringstream iToS4;
 	iToS4 << window;
-	print("Process(): window is " + iToS4.str() + debug);
+//	print("Process(): window is " + iToS4.str() + debug);
 
 //	print("Process(): segfault?" + debug);
 
@@ -116,20 +131,20 @@ Process::Process(int bedNumArg, int maxWindowArg, int shiftArg, int windowArg, v
 
 	stringstream iToS;
 	iToS << wigsByChr.size();
-	print("Process(): wigsByChr.size() " + iToS.str() + debug);
-	print("Process(): wigsByChr[0]->getChr() " + wigsByChr[0]->getChr() + debug);
+//	print("Process(): wigsByChr.size() " + iToS.str() + debug);
+//	print("Process(): wigsByChr[0]->getChr() " + wigsByChr[0]->getChr() + debug);
 
 //	*chrs = *chrs;
 	region = new MetaplotRegion*[bedNum];
 
 	chrs = new map< string, vector<int> * >;
 
-	print("Process(): after init members" + debug);
+//	print("Process(): after init members" + debug);
 
 	for (int i = 0; i < bedNum; i++)
 		region[i] = new MetaplotRegion(maxWindow);
 
-	print("Process(): after init region" + debug);
+//	print("Process(): after init region" + debug);
 
 	makeChromVec(commonChrs);
 /*
@@ -140,7 +155,7 @@ Process::Process(int bedNumArg, int maxWindowArg, int shiftArg, int windowArg, v
 	print("Process(): size of chrs vec (chr1) " + iToS2.str() + debug);
 	print("Process(): size of commonChrs vec (chr1) " + iToS3.str() + debug);
 */
-	print("Process(): end" + debug);
+//	print("Process(): end" + debug);
 }
 
 void Process::makeChromVec(map< string, vector<int> * > * commonChrs)
@@ -149,14 +164,14 @@ void Process::makeChromVec(map< string, vector<int> * > * commonChrs)
 	id << this_thread::get_id();
 
 	string debug = " My id: " + id.str() + " " ;
-	print("makeChromVec(): start" + debug);
+//	print("makeChromVec(): start" + debug);
 
 	for (map<string, vector<int> * >::iterator iter = commonChrs->begin(); iter != commonChrs->end(); iter++)
 	{
-		print("makeChromVec(): on chr " + iter->first + debug);
+//		print("makeChromVec(): on chr " + iter->first + debug);
 		chromVec.push_back(iter->first);
 
-		print("makeChromVec(): after push back" + debug);
+//		print("makeChromVec(): after push back" + debug);
 		
 		(*chrs)[iter->first] = new vector<int>;
 
@@ -167,13 +182,13 @@ void Process::makeChromVec(map< string, vector<int> * > * commonChrs)
 			stringstream iToS;
 			iToS << *it;
 
-			print("\tmakeChromVec(): on chr " + iter->first + " with index " + iToS.str() + debug);
+//			print("\tmakeChromVec(): on chr " + iter->first + " with index " + iToS.str() + debug);
 		}
 
-		print("makeChromVec(): after loop" + debug);
+//		print("makeChromVec(): after loop" + debug);
 	}
 
-	print("makeChromVec(): end" + debug);
+//	print("makeChromVec(): end" + debug);
 }
 
 MetaplotRegion * Process::mergeMetaplotRegions(MetaplotRegion ** array, int numRegions)
@@ -211,21 +226,21 @@ void Process::calculate(void)
 
 	string debug = " My id: " + id.str() + " " ;
 
-	print("calculate(): start" + debug);
+//	print("calculate(): start" + debug);
 
 //	if (threads->bedThreads == 0)
 	if (threads->chromThreads == 0)
 	{
-		print("calculate(): no chrom thread start" + debug);
+//		print("calculate(): no chrom thread start" + debug);
 		chromThread(chromVec.begin(), chromVec.end(), region); 
-		print("calculate(): no chrom thread end" + debug);
+//		print("calculate(): no chrom thread end" + debug);
 	}
 	else
 	{
-		print("calculate(): chrom thread start" + debug);
+//		print("calculate(): chrom thread start" + debug);
 		thread threadAr[threads->chromThreads];
 
-		print("calculate(): made threadAr" + debug);
+//		print("calculate(): made threadAr" + debug);
 //		MetaplotRegion ** regionAr = new MetaplotRegion*[threads->chromThreads];		
 
 //		thread threadAr[threads->bedThreads];
@@ -236,7 +251,7 @@ void Process::calculate(void)
 
 		MetaplotRegion *** chromRegion = new MetaplotRegion**[threads->chromThreads];
 
-		print("calculate(): made chromRegion " + debug);
+//		print("calculate(): made chromRegion " + debug);
 
 		for (int i = 0; i < threads->chromThreads; i++)
 		{
@@ -257,11 +272,11 @@ void Process::calculate(void)
 		for (int m = 0; m < threads->chromThreads; m++)
 			mergeMetaplotRegionsByBed(region, chromRegion[m]);				
 		
-		print("calculate(): chrom thread end" + debug);
+//		print("calculate(): chrom thread end" + debug);
 
 	}
 
-	print("calculate(): end" + debug);
+//	print("calculate(): end" + debug);
 }
 
 void Process::chromThread(vector<string>::iterator chromStart, vector<string>::iterator chromEnd, MetaplotRegion ** &regionMerge)
@@ -270,69 +285,70 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 	stringstream id;
 	id << this_thread::get_id();
 
-	string debug = " My id: " + id.str() + " " ;
-	print("chromThread(): start" + debug);
+	string debug = id.str();
+	print("\t- Start chromThread(): [" + debug + "]");
+//	print("chromThread(): start" + debug);
 
 	if (threads->bedThreads == 0)
 	{
 
-		print("chromThread(): no bed thread start" + debug);
+//		print("chromThread(): no bed thread start" + debug);
 		for (vector<string>::iterator iter = chromStart; iter != chromEnd; iter++)
 		{
-			print ("\tchromThread(): for start chr is " + *iter + debug);
+//			print ("\tchromThread(): for start chr is " + *iter + debug);
 //			chromRegionMerge[iter - chromStart] = new MetaplotRegion(maxWindow);
 
 			MetaplotRegion ** bedRegion = new MetaplotRegion*[bedNum]; // for threadsafe
 
-			print("\tchromThread(): after bed region init" + debug);
+//			print("\tchromThread(): after bed region init" + debug);
 
 			int wigChrPos = *(chrs->find(*iter)->second->begin());
 			
 
 			stringstream iToS;	
 			iToS << wigChrPos;	
-			print("\tchromThread(): after wigChrPos init is " + iToS.str() + debug);
+//			print("\tchromThread(): after wigChrPos init is " + iToS.str() + debug);
 			
 			wigsByChr[wigChrPos]->readPeaks();
 
-			print("\tchromThread(): after wig read peaks" + debug);
+//			print("\tchromThread(): after wig read peaks" + debug);
 
 			Bed ** bedAr = new Bed*[bedNum];
 
-			print("\tchromThread(): after bed init" + debug);
+//			print("\tchromThread(): after bed init" + debug);
 
 			stringstream iToS2;
 			iToS2 << chrs->find(*iter)->second->size();
 
-			print("\tchromThread(): chrs size is " + iToS2.str() + debug);
+//			print("\tchromThread(): chrs size is " + iToS2.str() + debug);
 
 			for (vector<int>::iterator it = chrs->find(*iter)->second->begin() + 1; it != chrs->find(*iter)->second->end(); it++)
 			{
-				print("\t\tchromThread(): in second for start" + debug);
+//				print("\t\tchromThread(): in second for start" + debug);
 				int index = it - chrs->find(*iter)->second->begin()-1;
 
 //				bedAr[index] = new Bed();
 
 				stringstream iToS3;
 				iToS3 << index;
-				print("\t\tchromThread(): index is " + iToS3.str() + debug);
+//				print("\t\tchromThread(): index is " + iToS3.str() + debug);
 
-				print("\t\tchromThread(): chr " + (*(bedsByChr[index].begin() + *it))->getChr() + debug);
+//				print("\t\tchromThread(): chr " + (*(bedsByChr[index].begin() + *it))->getChr() + debug);
 
 				bedAr[index] = *(bedsByChr[index].begin() + *it);
-				print("\t\tchromThread(): in second for end" + debug);
+//				print("\t\tchromThread(): in second for end" + debug);
 			}
 
-			print("\tchromThread(): calling bedThread()" + debug);
+//			print("\tchromThread(): calling bedThread()" + debug);
 			bedThread(bedAr, wigsByChr.begin() + wigChrPos, bedRegion, 0);
 
-			print("\tchromThread(): after call to bedThread()" + debug);
+//			print("\tchromThread(): after call to bedThread()" + debug);
 
 			mergeMetaplotRegionsByBed(regionMerge, bedRegion);
 
-			print("\tchromThread(): for end" + debug);
+//			print("\tchromThread(): for end" + debug);
 		}
-		print("chromThread(): no bed thread end" + debug);
+//		print("chromThread(): no bed thread end" + debug);
 
 	}
 	else
@@ -340,24 +356,24 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 //		for (int i = 0; i < bedNum; i++)
 //			bedRegion[i] = new MetaplotRegion(maxWindow);
 
-		print("chromThread(): bed thread start" + debug);
+//		print("chromThread(): bed thread start" + debug);
 
 		for (vector<string>::iterator iter = chromStart; iter != chromEnd; iter++)
 		{
 //			chromRegionMerge[iter - chromStart] = new MetaplotRegion(maxWindow);
 			
-			print("\tchromThread(): in first for start" + debug);
+//			print("\tchromThread(): in first for start" + debug);
 			MetaplotRegion ** bedRegion = new MetaplotRegion*[bedNum];
 			int wigChrPos = *(chrs->find(*iter)->second->begin());
 			wigsByChr[wigChrPos]->readPeaks();
 			
-			print("\tchromThread(): after wig read peaks" + debug);
+//			print("\tchromThread(): after wig read peaks" + debug);
 
 			Bed *** bedAr = new Bed**[threads->bedThreads];
 			 
 			for (int i = 0; i < threads->bedThreads; i++)
 			{
-				print("\t\tchromThread(): start inner for #1" + debug);
+//				print("\t\tchromThread(): start inner for #1" + debug);
 				bedAr[i] = new Bed*[bedsPerThread];
 
 				/* debug */
@@ -365,17 +381,17 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 				{
 					stringstream d;
 					d << deb - (chrs->find("chr1")->second->begin());
-					print("\t\t\tchomThread(): debug index for chr1 is " + d.str() + debug);
+//					print("\t\t\tchomThread(): debug index for chr1 is " + d.str() + debug);
 				}
 
 
 				for (vector<int>::iterator it = chrs->find(*iter)->second->begin() + (i * bedsPerThread) + 1; it != chrs->find(*iter)->second->begin() + (i + 1) * bedsPerThread + 1; it++)
 				{
 
-					print("\t\t\tchromThread(): start innermost for" + debug);
+//					print("\t\t\tchromThread(): start innermost for" + debug);
 					int index = it - (chrs->find(*iter)->second->begin() + i * bedsPerThread + 1);
 
-					print("\t\t\tchromThread(): found index for chr " + *iter + debug);
+//					print("\t\t\tchromThread(): found index for chr " + *iter + debug);
 					stringstream indexToS, iToS, itDebug;
 					indexToS << index;
 					iToS << i;
@@ -385,14 +401,14 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 				// FIXME HERE IT IS! MEMORY LEAK AGAIN
 				// chromThread(): index is 1 i is 0 it 11053 My id: 47475403069440 
 					itDebug << *it;
-					print("\t\t\tchromThread(): index is " + indexToS.str() + " i is " + iToS.str() + " it " + itDebug.str() + " it from start " + itFromStart.str() + debug);
+//					print("\t\t\tchromThread(): index is " + indexToS.str() + " i is " + iToS.str() + " it " + itDebug.str() + " it from start " + itFromStart.str() + debug);
 
 // FIXME the logic in this loop is wrong re: threading
 // somehow
 					stringstream debugSize;
 					debugSize << bedsByChr[index + i].size();
 
-					print("\t\t\tchromThread(): bedsbyChr size " + debugSize.str() + debug);
+//					print("\t\t\tchromThread(): bedsbyChr size " + debugSize.str() + debug);
 
 					bedAr[i][index] = *(bedsByChr[index + i].begin() + *it);
 
@@ -401,27 +417,27 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 					indexToStr << index;
 
 				// FIXME all threads get the same file!!! WHY -> made bedsByChr[index] to [index + i]
-					print("\t\t\tchromThread(): for i is " + iToStr.str() + " index is " + indexToStr.str() + " file is " + (*(bedsByChr[index + i].begin()))->getFilename() + debug);	
+//					print("\t\t\tchromThread(): for i is " + iToStr.str() + " index is " + indexToStr.str() + " file is " + (*(bedsByChr[index + i].begin()))->getFilename() + debug);	
 //					print("\t\t\t bedsByChr[index].begin() + *it -> getChr() is " + (*(bedsByChr[index].begin() + *it))->getChr() + debug);	
-					print("\t\t\tchromThread(): end innermost for" + debug);
+//					print("\t\t\tchromThread(): end innermost for" + debug);
 				}
 
-				print("\t\tchromThread(): end inner for #1" + debug);
+//				print("\t\tchromThread(): end inner for #1" + debug);
 			}
 		
-			print("\tchromThread(): after inner for #1" + debug);	
+//			print("\tchromThread(): after inner for #1" + debug);	
 
 			thread threadAr[threads->bedThreads];
 //			MetaplotRegion ** regionAr = new MetaplotRegion*[threads->bedThreads];
 
-			for (int d = 0; d < bedsPerThread; d++)
-			{
-				print("\t\tchromThread(): debug chr is " + bedAr[0][d]->getChr());
-			}
+//			for (int d = 0; d < bedsPerThread; d++)
+//			{
+//				print("\t\tchromThread(): debug chr is " + bedAr[0][d]->getChr());
+//			}
 
 
 
-			print("\tchromThread(): before fill threadAr" + debug);
+//			print("\tchromThread(): before fill threadAr" + debug);
 			for (int i = 0; i < threads->bedThreads; i++)
 			{
 //				regionAr[i] = new MetaplotRegion(maxWindow);
@@ -429,7 +445,7 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 				threadAr[i] = thread(&Process::bedThread, this, bedAr[i], wigsByChr.begin() + wigChrPos, ref(bedRegion), i);	
 			}
 
-			print("\tchromThread(): before join()" + debug);
+//			print("\tchromThread(): before join()" + debug);
 
 			for (int i = 0; i < threads->bedThreads; i++)
 				threadAr[i].join();
@@ -447,17 +463,18 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 				delete bedRegion[1];
 			}
 */		
-			print("\tchromThread(): before merge" + debug);
+//			print("\tchromThread(): before merge" + debug);
 			mergeMetaplotRegionsByBed(regionMerge, bedRegion);
-			print("\tchromThread(): in first for end" + debug);
+//			print("\tchromThread(): in first for end" + debug);
 		}
 
-		print("chromThread(): bed thread end" + debug);
+//		print("chromThread(): bed thread end" + debug);
 		
 	}
 
-	print("chromThread(): end" + debug);
+//	print("chromThread(): end" + debug);
 //	regionMerge = mergeMetaplotRegions(chromRegionMerge, chromsPerThread);
+	print("\t- End chromThread(): [" + debug + "]");
 }
 
 void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotRegion ** &regionMerge, int whichSlice)
@@ -465,18 +482,19 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 	stringstream id;
 	id << this_thread::get_id();
 
-	string debug = " My id: " + id.str() + " " ;
+	string debug = id.str();
+	print("\t\t- Start bedThread(): [" + debug + "]");
 
-	print("bedThread(): start" + debug);
+//	print("bedThread(): start" + debug);
 
 	if (threads->divThreads == 0)
 	{
-		print("bedThread(): no div thread start" + debug);
+//		print("bedThread(): no div thread start" + debug);
 //		MetaplotRegion ** bedRegionMerge = new MetaplotRegion*[bedsPerThread];
 
 		for (int i = 0; i < bedsPerThread; i++)
 		{
-			print ("bedThread(): in for " + debug);
+//			print ("bedThread(): in for " + debug);
 			Bed * bed;
 			Wig * wig;
 
@@ -488,18 +506,18 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 			sliceToStr << whichSlice;
 
 			
-			print("\tbedThread(): in for start i is " + iToStr.str() + " beds per thread: " + bpt.str() + " whichSlice : " + sliceToStr.str() +  debug);
+//			print("\tbedThread(): in for start i is " + iToStr.str() + " beds per thread: " + bpt.str() + " whichSlice : " + sliceToStr.str() +  debug);
 //			bedRegionMerge[i] = new MetaplotRegion(maxWindow);
 			regionMerge[i + whichSlice] = new MetaplotRegion(maxWindow);
 
-			print("\tbedThread(): after regionMerge init" + debug);
+//			print("\tbedThread(): after regionMerge init" + debug);
 
-			print("\tbedThread(): bedAr[i]->getChr() is " + bedAr[i]->getChr() + debug);
+//			print("\tbedThread(): bedAr[i]->getChr() is " + bedAr[i]->getChr() + debug);
 
 			bedAr[i]->readPeaks();
 			startStr << bedAr[i]->firstPeak()->start;
 
-			print("\tbedThread(): after readPeaks() firstPeak start is " + startStr.str() + debug);
+//			print("\tbedThread(): after readPeaks() firstPeak start is " + startStr.str() + debug);
 			
 			vector<Peak>::iterator startBed, endBed, startWig, endWig;
 			bedAr[i]->getPeakDiv(0, 0, startBed, endBed, bed);
@@ -509,7 +527,7 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 //				bedEndEnd << endBed->end;
 //				print("\t\tbedThread(): startbed start is " + bedstarttest.str() + " endbed start is " + bedendtest.str() + " bedEnd end " + bedEndEnd.str() + debug);
 //				print("\t\tbedThread(): startbed start is " + bedstarttest.str() + debug);
-			print("\tbedThread(): after bedAr->getPeakDiv()" + debug);
+//			print("\tbedThread(): after bedAr->getPeakDiv()" + debug);
 
 // Issue:
 // *** Error in `	bedThread(): after bedAr->getPeakDiv() My id: 47642893563648 
@@ -520,32 +538,32 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 
 			if (bed->endPeak() == bed->firstPeak() - bed->getPeakSize())
 			{
-				print("\tbedThread(): endPeak() == peaks.end()" + debug);
+//				print("\tbedThread(): endPeak() == peaks.end()" + debug);
 				(*wigIter)->getPeakDiv(bed->firstPeak()->start, (bed->endPeak() + 1)->end, wig);
 			}
 			else
 			{
-				print("\tbedThread(): endPeak() != peaks.end()" + debug);
+//				print("\tbedThread(): endPeak() != peaks.end()" + debug);
 				(*wigIter)->getPeakDiv(bed->firstPeak()->start, (bed->endPeak())->start, wig);
 			}
 
 
 //			(*wigIter)->getPeakDiv(startBed->start, endBed->start, wig);
-			print("\tbedThread(): after wigIter->getPeakDiv()" + debug);
+//			print("\tbedThread(): after wigIter->getPeakDiv()" + debug);
 //			divThread(startBed, endBed, startWig, endWig, bedRegionMerge[i]);
 
-			print("\tbedThread(): before call to divThread()" + debug);
+//			print("\tbedThread(): before call to divThread()" + debug);
 
 			divThread(bed, wig, regionMerge[i + whichSlice]);
-			print("\tbedThread(): in for end" + debug);
+//			print("\tbedThread(): in for end" + debug);
 		}
 
 //		regionMerge = mergeMetaplotRegions(bedRegionMerge, bedsPerThread);
-		print("bedThread(): no div thread end" + debug);
+//		print("bedThread(): no div thread end" + debug);
 	}
 	else
 	{
-		print("bedThread(): else: div thread start" + debug);
+//		print("bedThread(): else: div thread start" + debug);
 //		MetaplotRegion ** bedRegionMerge = new MetaplotRegion*[bedsPerThread];
 
 		for (int i = 0; i < bedsPerThread; i++)
@@ -553,7 +571,7 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 			stringstream iToS;
 			iToS << i;
 
-			print("bedThread(): start of bedsPerThread for i is " + iToS.str() + debug);
+//			print("bedThread(): start of bedsPerThread for i is " + iToS.str() + debug);
 			regionMerge[i + whichSlice] = new MetaplotRegion(maxWindow);
 
 			MetaplotRegion ** divRegions = new MetaplotRegion*[threads->divThreads];
@@ -562,7 +580,7 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 			
 			for (int j = 0; j < threads->divThreads; j++)
 			{
-				print("bedThread(): start of threads->divThreads for" + debug);
+//				print("bedThread(): start of threads->divThreads for" + debug);
 				Bed * bed;
 				Wig * wig;
 				divRegions[j] = new MetaplotRegion(maxWindow);
@@ -597,41 +615,42 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 				if (bed->getPeakSize() == 0)
 					return;
 
-				print("bedThread(): before wig->getPeakDiv" + debug);
+//				print("bedThread(): before wig->getPeakDiv" + debug);
 				if (bed->endPeak() == bed->firstPeak() - bed->getPeakSize())
 				{
 					stringstream sizeToI;
 					sizeToI << bed->getPeakSize();
-					print("\t\tbedThread(): endPeak() == peaks.end()! Peak size is " + sizeToI.str() + " bed chr is " + bed->getChr() + debug);
+//					print("\t\tbedThread(): endPeak() == peaks.end()! Peak size is " + sizeToI.str() + " bed chr is " + bed->getChr() + debug);
 					(*wigIter)->getPeakDiv(bed->firstPeak()->start, (bed->endPeak() + 1)->end, wig);
 				}
 				else
 					(*wigIter)->getPeakDiv(bed->firstPeak()->start, (bed->endPeak())->start, wig);
 			
-				print("bedThread(): after wig->getPeakDiv" + debug);
+//				print("bedThread(): after wig->getPeakDiv" + debug);
 				stringstream wigSize;
 				wigSize << wig->getPeakSize();
-				print("\tbedThread(): wig size is " + wigSize.str() + debug);
+//				print("\tbedThread(): wig size is " + wigSize.str() + debug);
 
 
-				print("\tbedThread(): Before thread()" + debug);
+//				print("\tbedThread(): Before thread()" + debug);
 				threadAr[j] = thread(&Process::divThread, this, bed, wig, ref(divRegions[j])); 
-				print("\tbedThread(): After thread()" + debug);
+//				print("\tbedThread(): After thread()" + debug);
 			}
 
 			for (int k = 0; k < threads->divThreads; k++)
 				threadAr[k].join();
 
-			print("bedThread(): After join()" + debug);
+//			print("bedThread(): After join()" + debug);
 
 //			bedRegionMerge[i] = mergeMetaplotRegions(divRegions, threads->divThreads);
 			regionMerge[i + whichSlice] = mergeMetaplotRegions(divRegions, threads->divThreads);
 		}
 
-		print("bedThread(): div thread end" + debug);
+//		print("bedThread(): div thread end" + debug);
 
 //		regionMerge = mergeMetaplotRegions(bedRegionMerge, bedsPerThread);
 	}
+	print("\t\t- End bedThread(): [" + debug + "]");
 }
 
 
@@ -640,22 +659,30 @@ void Process::divThread(Bed * bed, Wig * wig, MetaplotRegion * &regionMerge)
 	stringstream id;
 	id << this_thread::get_id();
 
-	string debug = " My id: " + id.str() + " " ;
+	string debug = id.str();
 
-	print("divThread(): start" + debug);
+//	print("Start of divThread " + debug);
+//	print("divThread(): start" + debug);
 
 	while(bed->isValid())
 	{
-		print("\tdivThread(): in while start" + debug);
+//		print("\tdivThread(): in while start" + debug);
 		vector<Peak>::iterator iter = bed->getCurrPeak();
 
 		Wig * smallWig;
 
-		print("\tdivThread(): before wig getPeakDiv call" + debug);
+//		print("\tdivThread(): before wig getPeakDiv call" + debug);
+	
+		stringstream start, end, size;
+		start << iter->start;
+		end << iter->end;
+		size << wig->getPeakSize();
 
+//		print("\tdivThread(): start is " + start.str() + " end is " + end.str() + " size is " + size.str() + " " + debug);
+	
 		wig->getPeakDiv(iter->start, iter->end, smallWig);
 		
-		print("\tdivThread(): before call to map" + debug);
+//		print("\tdivThread(): before call to map" + debug);
 
 		if (smallWig->getPeakSize() == 0 || (smallWig->getPeakSize() == 1 && (smallWig->getCurrPeak()->end < iter->start || smallWig->getCurrPeak()->start > iter->end)))
 		{
@@ -663,10 +690,11 @@ void Process::divThread(Bed * bed, Wig * wig, MetaplotRegion * &regionMerge)
 			continue;
 		}	
 
-		mapWig(smallWig, iter->start, iter->strand, regionMerge);	
+//		mapWig(smallWig, iter->start, iter->strand, regionMerge);	
+		slidingWindow(smallWig, iter->start, iter->strand, regionMerge);	
 
 		bed->nextPeak();
-		print("\tdivThread(): in while end" + debug);
+//		print("\tdivThread(): in while end" + debug);
 	}
 
 /*
@@ -735,7 +763,62 @@ void Process::divThread(Bed * bed, Wig * wig, MetaplotRegion * &regionMerge)
 	} // for	
 
 */
-	print("divThread(): end" + debug);
+//	print("divThread(): end" + debug);
+//	print("End of divThread " + debug);
+}
+
+void Process::slidingWindow(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &region)
+{
+	stringstream id;
+	id << this_thread::get_id();
+
+	string debug = " My id: " + id.str() + " " ;
+
+
+//	print("Start of Sliding Window " + debug);	
+	vector<Peak>::iterator currPeak = wig->getCurrPeak();
+//	print("slidingWindow(): bedStart is " + convertI(bedStart) + " wig size is " + convertI(wig->getPeakSize()) + " start is " + convertI(currPeak->start) + " wig peak end is " + convertI(wig->endPeak()->end) + " " + debug);
+
+	// build array of values
+	double values[maxWindow+window];
+	for (int i = 0; i < maxWindow+window; i++)
+	{
+		values[i] = 0;
+
+		if (wig->isValid())
+		{	
+//			print("\ti is " + convertI(i) + " and wig is valid " + debug);
+			if (currPeak->start <= bedStart + i && currPeak->end >= bedStart + i)
+				values[i] += currPeak->value;
+			else
+			{
+//				print("\tcurrent pos is " + convertI(i + bedStart) + " currWig start is " + convertI(currPeak->start) + " currWig end is " + convertI(currPeak->end) + " " + debug);
+				if (currPeak->start < bedStart + i)
+				{
+					wig->nextPeak();
+					currPeak = wig->getCurrPeak();
+
+					if (wig->isValid() && currPeak->start <= bedStart + i && currPeak->end >= bedStart + i)
+						values[i] += currPeak->value;
+//				i--; // this is tricky -> and slightly wrong! yay!
+				}
+			}
+		}
+	}
+
+	// slide window
+	for (int pos = bedStart; pos < bedStart + maxWindow; pos+=shift)
+	{
+		double avg = 0;
+
+		for (int j = pos; j < pos + window; j++)
+		{
+			avg += values[j - bedStart];
+		}
+	
+		region->addSignal( (pos - bedStart), 1, (double) avg / window, bedStrand);
+	}
+//	print("End of Sliding Window " + debug);	
 }
 
 /* FIXME THIS ENTIRE ALGORITHM RESTS ON THE FACT THAT WINDOW % SHIFT == 0
@@ -754,18 +837,21 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 	stringstream bedStartStr;
 	bedStartStr << bedStart;
 
-	print("mapWig(): start wigSize is " + wigSize.str() + " bedStart is " + bedStartStr.str() + debug);
+//	print("mapWig(): start wigSize is " + wigSize.str() + " bedStart is " + bedStartStr.str() + debug);
+
+	vector<Peak>::iterator iter = wig->getCurrPeak();
+
+	int pos = max(iter->start - window, bedStart);
 
 	while(wig->isValid())
 	{
-		print("mapWig(): in while" + debug);
-		vector<Peak>::iterator iter = wig->getCurrPeak();
+//		print("mapWig(): in while" + debug);
 
 		stringstream startToStr, valToStr;
 		startToStr << iter->start;
 		valToStr << iter->value;
 	
-		print("mapWig(): iter->start is " + startToStr.str() + " value is " + valToStr.str() + debug);
+//		print("mapWig(): iter->start is " + startToStr.str() + " value is " + valToStr.str() + debug);
 
 		RunningAvg avg(window, shift);
 
@@ -791,11 +877,17 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 //		else if (fwdIter->end < iter->start - window)
 //			return;
 
+//					dgin-lightfileToStr << (*(bedsByChr[index].begin() + *it))->getFilename();
 		print("mapWig(): after set fwdIter" + debug);
 
-		int pos = iter->start - window;
+//		int pos = iter->start - window;
 
 //		while((backIter == wig->firstPeak()) || backIter < iter)
+
+/*	case:
+ *	=====	=====	
+ *	back	iter
+ */
 		while(backIter < iter)
 		{
 			print ("\tmapWig(): while backIter < iter" + debug);
@@ -828,18 +920,22 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 
 		print("mapWig(): after init while loop" + debug);	
 
+		// if not above case, will add 0
+
 		region->addSignal(pos - bedStart, 1, avg.getAvg(), bedStrand);
+		pos += shift;
 
 		print("mapWig(): after addSignal" + debug);
 // FIXME no idea what's going on after this point	
 
 		int numSlidingWindow = 0;
-		pos += shift;
 
-		int nextOverlap = iter->end - window;	
-		
-		if (fwdIter != iter)
-			nextOverlap = fwdIter->start - window;
+//		int nextOverlap = iter->end - window;	
+
+		// fwdIter MUST be a valid peak
+		int nextOverlap = min(iter->end - window, fwdIter->start - window);		
+//		if (fwdIter != iter)
+//			nextOverlap = fwdIter->start - window;
 
 		print("mapWig(): before if/else" + debug);
 
@@ -847,8 +943,9 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 		if (nextOverlap < iter->start)
 		{
 			print("\tmapWig(): in if" + debug);
-//			numSlidingWindow = (nextOverlap + window - iter->start) / shift;
-			numSlidingWindow = (nextOverlap + window - iter->end) / shift;
+			
+			numSlidingWindow = (nextOverlap + window - iter->start) / shift;
+			//			numSlidingWindow = (nextOverlap + window - iter->end) / shift;
 
 			stringstream winStr;
 			winStr << numSlidingWindow;
@@ -859,9 +956,8 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 
 			for (int i = 0; i < numSlidingWindow; i++)
 			{
-				avg.queue(1, (double)iter->value * shift);
-
-				double result = (double) iter->value *shift;
+				double result = (double) iter->value * shift;
+				avg.queue(1, result);
 
 				stringstream resultToStr;
 				resultToStr << result;
@@ -935,6 +1031,7 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 		print("mapWig(): before wig->nextPeak()" + debug);
 
 		wig->nextPeak();
+		iter = wig->getCurrPeak();
 		print("mapWig(): end of while" + debug);
 	}
 	print("mapWig(): end" + debug);
@@ -1167,7 +1264,7 @@ void Process::mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &
 
 string Process::printResults(string nameStr, string nameStrR)
 {
-	print("Printing out results");
+//	print("Printing out results");
 	
 	string outfileName = "metaplot_outfile.txt";
 	ofstream file(outfileName.c_str());

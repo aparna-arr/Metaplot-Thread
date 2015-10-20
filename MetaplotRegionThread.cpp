@@ -17,13 +17,13 @@ MetaplotRegion::MetaplotRegion(int len)
 
 void MetaplotRegion::addSignal(int offset, int len, double value, char strand)
 {
-	cerr << "In addSignal" << endl;
-	cerr << "offset is " << offset << " len is " << len << endl;
+//	cerr << "In addSignal" << endl;
+//	cerr << "offset is " << offset << " len is " << len << endl;
 	
 	if (offset < 0 || len <= 0)
 		return;
 
-	cerr << "going to add " << value << endl;
+//	cerr << "going to add " << value << endl;
 
 	if (strand == '+')
 	{

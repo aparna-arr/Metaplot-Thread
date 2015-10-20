@@ -35,7 +35,7 @@ class RunningAvg
 	double * queueAr; // this should be circular
 	int nextEmpty; // next empty block to use -- same as first???
 	int numShifts;	
-
+	int windowSize;
 	double currentAvg; 		
 };
 
@@ -53,6 +53,7 @@ class Process
 	void bedThread(Bed ** bedAr, std::vector<Wig *>::iterator wigIter, MetaplotRegion ** &regionMerge, int whichSlice);
 	void divThread(Bed * bed, Wig * wig, MetaplotRegion * &regionMerge);
 	void mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &regionMerge);
+	void slidingWindow(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &regionMerge);
 	
 	void makeChromVec(std::map< std::string, std::vector<int> * > * commonChrs);
 
@@ -75,6 +76,10 @@ class Process
 };
 
 void print(std::string msg);
+
+std::string convertI(int num);
+std::string convertD(double num);
+
 /*
 MetaplotRegion * calculate(int bedNum, int maxWindow, std::vector<Bed *> * bedsByChr, std::vector<Wig *> wigsByChr, ThreadInfo * threads, std::map< std::string, std::vector<int>* > * chrs);
 
