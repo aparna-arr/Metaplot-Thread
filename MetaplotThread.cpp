@@ -261,8 +261,11 @@ void Process::calculate(void)
 			for (int k = 0; k < bedNum; k++) // VERY EXPENSIVE init for Monte Carlo! Horrible! O(numChrom * numBed) so basically n^2!
 				chromRegion[i][k] = new MetaplotRegion(maxWindow);
 
+			int lastNum = chromsPerThread;
+			if (chromVec.begin() + chromsPerThread * (i + 1) > chromVec.end())
+				lastNum = chromVec.end() - (chromVec.begin() + chromsPerThread * i);
 
-			threadAr[i] = thread(&Process::chromThread, this, chromVec.begin() + chromsPerThread * i, chromVec.begin() + chromsPerThread * (i + 1), ref(chromRegion[i]));
+			threadAr[i] = thread(&Process::chromThread, this, chromVec.begin() + chromsPerThread * i, chromVec.begin() + lastNum * (i + 1), ref(chromRegion[i]));
 		}
 
 		for (int j = 0; j < threads->chromThreads; j++)
@@ -340,7 +343,7 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 			}
 
 //			print("\tchromThread(): calling bedThread()" + debug);
-			bedThread(bedAr, wigsByChr.begin() + wigChrPos, bedRegion, 0);
+			bedThread(bedAr, bedNum, wigsByChr.begin() + wigChrPos, bedRegion, 0);
 
 //			print("\tchromThread(): after call to bedThread()" + debug);
 
@@ -370,51 +373,58 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 //			print("\tchromThread(): after wig read peaks" + debug);
 
 			Bed *** bedAr = new Bed**[threads->bedThreads];
+			int lastNum = bedsPerThread;
 			 
 			for (int i = 0; i < threads->bedThreads; i++)
 			{
 //				print("\t\tchromThread(): start inner for #1" + debug);
-				bedAr[i] = new Bed*[bedsPerThread];
+
+
+				if (chrs->find(*iter)->second->begin() + (i + 1) * bedsPerThread + 1 > chrs->find(*iter)->second->end())
+					lastNum = chrs->find(*iter)->second->end() - (chrs->find(*iter)->second->begin() + i * bedsPerThread);
+
+				
+				bedAr[i] = new Bed*[lastNum];
 
 				/* debug */
-				for (vector<int>::iterator deb = chrs->find("chr1")->second->begin(); deb != chrs->find("chr1")->second->end(); deb++)
-				{
-					stringstream d;
-					d << deb - (chrs->find("chr1")->second->begin());
-//					print("\t\t\tchomThread(): debug index for chr1 is " + d.str() + debug);
-				}
+			//	for (vector<int>::iterator deb = chrs->find("chr1")->second->begin(); deb != chrs->find("chr1")->second->end(); deb++)
+			//	{
+			//		stringstream d;
+			//		d << deb - (chrs->find("chr1")->second->begin());
+//			//		print("\t\t\tchomThread(): debug index for chr1 is " + d.str() + debug);
+//				}
 
 
-				for (vector<int>::iterator it = chrs->find(*iter)->second->begin() + (i * bedsPerThread) + 1; it != chrs->find(*iter)->second->begin() + (i + 1) * bedsPerThread + 1; it++)
+				for (vector<int>::iterator it = chrs->find(*iter)->second->begin() + (i * bedsPerThread) + 1; it != chrs->find(*iter)->second->begin() + (i + 1) * lastNum + 1; it++)
 				{
 
 //					print("\t\t\tchromThread(): start innermost for" + debug);
 					int index = it - (chrs->find(*iter)->second->begin() + i * bedsPerThread + 1);
 
 //					print("\t\t\tchromThread(): found index for chr " + *iter + debug);
-					stringstream indexToS, iToS, itDebug;
-					indexToS << index;
-					iToS << i;
+//					stringstream indexToS, iToS, itDebug;
+//					indexToS << index;
+//					iToS << i;
 
-					stringstream itFromStart;
-					itFromStart << it - chrs->find(*iter)->second->begin();
+//					stringstream itFromStart;
+//					itFromStart << it - chrs->find(*iter)->second->begin();
 				// FIXME HERE IT IS! MEMORY LEAK AGAIN
 				// chromThread(): index is 1 i is 0 it 11053 My id: 47475403069440 
-					itDebug << *it;
+//					itDebug << *it;
 //					print("\t\t\tchromThread(): index is " + indexToS.str() + " i is " + iToS.str() + " it " + itDebug.str() + " it from start " + itFromStart.str() + debug);
 
 // FIXME the logic in this loop is wrong re: threading
 // somehow
-					stringstream debugSize;
-					debugSize << bedsByChr[index + i].size();
+//					stringstream debugSize;
+//					debugSize << bedsByChr[index + i].size();
 
 //					print("\t\t\tchromThread(): bedsbyChr size " + debugSize.str() + debug);
 
 					bedAr[i][index] = *(bedsByChr[index + i].begin() + *it);
 
-					stringstream iToStr, indexToStr;
-					iToStr << i;
-					indexToStr << index;
+//					stringstream iToStr, indexToStr;
+//					iToStr << i;
+//					indexToStr << index;
 
 				// FIXME all threads get the same file!!! WHY -> made bedsByChr[index] to [index + i]
 //					print("\t\t\tchromThread(): for i is " + iToStr.str() + " index is " + indexToStr.str() + " file is " + (*(bedsByChr[index + i].begin()))->getFilename() + debug);	
@@ -442,7 +452,7 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 			{
 //				regionAr[i] = new MetaplotRegion(maxWindow);
 //				threadAr[i] = thread(&Process::bedThread, this, bedAr[i], wigsByChr.begin() + wigChrPos, ref(regionAr[i]));	
-				threadAr[i] = thread(&Process::bedThread, this, bedAr[i], wigsByChr.begin() + wigChrPos, ref(bedRegion), i);	
+				threadAr[i] = thread(&Process::bedThread, this, bedAr[i], lastNum, wigsByChr.begin() + wigChrPos, ref(bedRegion), i);	
 			}
 
 //			print("\tchromThread(): before join()" + debug);
@@ -477,7 +487,7 @@ void Process::chromThread(vector<string>::iterator chromStart, vector<string>::i
 	print("\t- End chromThread(): [" + debug + "]");
 }
 
-void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotRegion ** &regionMerge, int whichSlice)
+void Process::bedThread(Bed ** bedAr, int arraySize, vector<Wig *>::iterator wigIter, MetaplotRegion ** &regionMerge, int whichSlice)
 {
 	stringstream id;
 	id << this_thread::get_id();
@@ -492,18 +502,19 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 //		print("bedThread(): no div thread start" + debug);
 //		MetaplotRegion ** bedRegionMerge = new MetaplotRegion*[bedsPerThread];
 
-		for (int i = 0; i < bedsPerThread; i++)
+		for (int i = 0; i < arraySize; i++)
 		{
 //			print ("bedThread(): in for " + debug);
 			Bed * bed;
 			Wig * wig;
 
-			stringstream iToStr, bpt, sliceToStr, startStr;
-			iToStr << i;
+			print("\tbedThread(): bed " + bedAr[i]->getFilename() + " " + debug);
+//			stringstream iToStr, bpt, sliceToStr, startStr;
+//			iToStr << i;
 
-			bpt << bedsPerThread;
+//			bpt << bedsPerThread;
 
-			sliceToStr << whichSlice;
+		//	sliceToStr << whichSlice;
 
 			
 //			print("\tbedThread(): in for start i is " + iToStr.str() + " beds per thread: " + bpt.str() + " whichSlice : " + sliceToStr.str() +  debug);
@@ -515,7 +526,7 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 //			print("\tbedThread(): bedAr[i]->getChr() is " + bedAr[i]->getChr() + debug);
 
 			bedAr[i]->readPeaks();
-			startStr << bedAr[i]->firstPeak()->start;
+//			startStr << bedAr[i]->firstPeak()->start;
 
 //			print("\tbedThread(): after readPeaks() firstPeak start is " + startStr.str() + debug);
 			
@@ -566,7 +577,7 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 //		print("bedThread(): else: div thread start" + debug);
 //		MetaplotRegion ** bedRegionMerge = new MetaplotRegion*[bedsPerThread];
 
-		for (int i = 0; i < bedsPerThread; i++)
+		for (int i = 0; i < arraySize; i++)
 		{
 			stringstream iToS;
 			iToS << i;
@@ -618,8 +629,8 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 //				print("bedThread(): before wig->getPeakDiv" + debug);
 				if (bed->endPeak() == bed->firstPeak() - bed->getPeakSize())
 				{
-					stringstream sizeToI;
-					sizeToI << bed->getPeakSize();
+//					stringstream sizeToI;
+//					sizeToI << bed->getPeakSize();
 //					print("\t\tbedThread(): endPeak() == peaks.end()! Peak size is " + sizeToI.str() + " bed chr is " + bed->getChr() + debug);
 					(*wigIter)->getPeakDiv(bed->firstPeak()->start, (bed->endPeak() + 1)->end, wig);
 				}
@@ -627,8 +638,8 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 					(*wigIter)->getPeakDiv(bed->firstPeak()->start, (bed->endPeak())->start, wig);
 			
 //				print("bedThread(): after wig->getPeakDiv" + debug);
-				stringstream wigSize;
-				wigSize << wig->getPeakSize();
+//				stringstream wigSize;
+//				wigSize << wig->getPeakSize();
 //				print("\tbedThread(): wig size is " + wigSize.str() + debug);
 
 
@@ -653,7 +664,7 @@ void Process::bedThread(Bed ** bedAr, vector<Wig *>::iterator wigIter, MetaplotR
 	print("\t\t- End bedThread(): [" + debug + "]");
 }
 
-
+// threading Divisions sometimes gives different result ... is there peak duplication happening?
 void Process::divThread(Bed * bed, Wig * wig, MetaplotRegion * &regionMerge)
 {
 	stringstream id;
@@ -1327,7 +1338,45 @@ string printResults(MetaplotRegion * result, int bedNum, std::string nameStr, st
 */
 void monteCarlo(std::string outfile, int bedNum)
 {
+	ifstream infile(outfile.c_str());
+	ofstream out("metaplot_outfile.tmp");
 
+	out << "bp\tsimulation" << endl;
+
+	string line;
+		
+	while(getline(infile, line))
+	{
+		double num;	
+		stringstream linestream(line);
+		
+		if (!(linestream >> num))
+			continue;
+
+		double bp = num;
+		double avg = 0;
+		string NA;
+
+		for (int i = 0; i < bedNum; i++)
+		{
+			linestream >> NA;
+			stringstream toNum(NA);
+			
+			if ((toNum >> num))
+				avg += num;
+		}
+
+		avg /= (double) bedNum;
+	
+		out << bp << "\t" << avg << endl;
+	}
+
+	out.close();
+	infile.close();
+		
+	rename("metaplot_outfile.txt", "tmp");
+	rename("metaplot_outfile.tmp", "metaplot_outfile.txt");
+	rename("tmp", "metaplot_outfile.tmp");
 }
 
 /* end Process functions */

@@ -50,7 +50,7 @@ class Process
 
 	private:
 	void chromThread(std::vector<std::string>::iterator chromStart, std::vector<std::string>::iterator chromEnd, MetaplotRegion ** &regionMerge);
-	void bedThread(Bed ** bedAr, std::vector<Wig *>::iterator wigIter, MetaplotRegion ** &regionMerge, int whichSlice);
+	void bedThread(Bed ** bedAr, int arraySize, std::vector<Wig *>::iterator wigIter, MetaplotRegion ** &regionMerge, int whichSlice);
 	void divThread(Bed * bed, Wig * wig, MetaplotRegion * &regionMerge);
 	void mapWig(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &regionMerge);
 	void slidingWindow(Wig * wig, int bedStart, char bedStrand, MetaplotRegion * &regionMerge);

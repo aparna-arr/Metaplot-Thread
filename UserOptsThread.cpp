@@ -452,7 +452,7 @@ string UserOpts::handleOpts(int argc, char * argv[])
 			}
 			
 			string fileOrDir(argv[i+1]);
-			
+			i++; 	
 			if (opt == "readSplitWig")
 				wigSplitDir = fileOrDir;
 			else if (opt == "readSplitBed")
