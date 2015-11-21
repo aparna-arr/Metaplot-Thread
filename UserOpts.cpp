@@ -90,6 +90,11 @@ UserOpts::UserOpts(int argc, char *argv[])
 	
 	for (vector<string>::iterator iter = tmpBedsAndNames.begin() + numBeds; iter != tmpBedsAndNames.end(); iter++)
 	{
+		int found = string::npos;
+
+		if ((found = (*iter).find('/')) != string::npos)
+			*iter = (*iter).substr(found+1);
+			
 		cout << *iter << endl;
 		names.push(*iter);
 	}

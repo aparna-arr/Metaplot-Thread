@@ -104,6 +104,10 @@ UserOpts::UserOpts(int argc, char *argv[])
 
 	for (vector<string>::iterator iter = bedsAndNames.begin() + bedNum; iter != bedsAndNames.end(); iter++)
 	{
+		size_t found = string::npos;
+		if ((found = (*iter).rfind('/')) != string::npos)
+			(*iter) = (*iter).substr(found+1);
+
 		msg += *iter + "\n";
 		names.push(*iter);
 	}
@@ -117,7 +121,7 @@ UserOpts::UserOpts(int argc, char *argv[])
 	while(!names.empty())
 	{
 		nameStr = names.top() + "\t" + nameStr;
-		nameStrR = "'" + names.top() + "', " + nameStr;
+		nameStrR = "'" + names.top() + "', " + nameStrR;
 		names.pop();
 	}
 

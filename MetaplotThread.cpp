@@ -508,7 +508,7 @@ void Process::bedThread(Bed ** bedAr, int arraySize, vector<Wig *>::iterator wig
 			Bed * bed;
 			Wig * wig;
 
-			print("\tbedThread(): bed " + bedAr[i]->getFilename() + " " + debug);
+			print("\t\t\tbedThread(): bed " + bedAr[i]->getFilename() + " " + debug);
 //			stringstream iToStr, bpt, sliceToStr, startStr;
 //			iToStr << i;
 
